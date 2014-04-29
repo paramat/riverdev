@@ -1,4 +1,4 @@
--- riverdev 0.1.0 by paramat
+-- riverdev 0.1.1 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
@@ -8,24 +8,24 @@
 local YMIN = -33000
 local YMAX = 33000
 local YWATER = 1
-local TERZERO = 32 -- Terrain zero level
-local TERSCAL = 128 -- Terrain scale in nodes
-local TSTONE = 0.04 -- Density threshold for stone, depth of stone below surface
-local BASAMP = 0.4
-local MIDAMP = 0.4
+local TERZERO = 1 -- Terrain zero level
+local TERSCAL = 256 -- Terrain scale in nodes
+local TSTONE = 0.03 -- Density threshold for stone, depth of stone below surface
+local BASAMP = 0.2
+local MIDAMP = 0.2
 local TERAMP = 0.4
-local TRIVER = -0.04
-local TSTREAM = -0.02
+local TRIVER = -0.03
+local TSTREAM = -0.01
 
 -- 3D noise for terrain
 
 local np_terrain = {
 	offset = 0,
 	scale = 1,
-	spread = {x=384, y=384, z=384}, -- squashed perlin noise, y spread is half
+	spread = {x=384, y=192, z=384},
 	seed = 5900033,
 	octaves = 5,
-	persist = 0.63
+	persist = 0.67
 }
 
 -- 2D noise for mid terrain
@@ -47,7 +47,7 @@ local np_base = {
 	spread = {x=1536, y=1536, z=1536}, -- spread is still stated with xyz values
 	seed = -990054,
 	octaves = 3,
-	persist = 0.4
+	persist = 0.33
 }
 
 -- Stuff
@@ -210,6 +210,9 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				local densitymid = math.abs(n_mid) * MIDAMP + densitybas
 				local density = math.abs(n_terrain) * TERAMP * math.abs(n_mid) + densitymid
 				
+				local triver = TRIVER * (1 - n_base)
+				local tstream = TSTREAM * (1 - math.abs(n_mid))
+				
 				if density >= TSTONE then -- stone
 					data[vi] = c_stone
 					stable[si] = stable[si] + 1
@@ -218,16 +221,15 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				elseif y <= YWATER and density < TSTONE then -- sea water
 					data[vi] = c_water
 					stable[si] = 0
-				elseif densitybas >= TRIVER then -- river water
+				elseif densitybas >= triver then -- river water
 					data[vi] = c_freshwater
 					stable[si] = 0
-				elseif densitymid >= TSTREAM then -- stream water
+				elseif densitymid >= tstream then -- stream water
 					data[vi] = c_freshwater
 					stable[si] = 0
 				else -- air
 					stable[si] = 0
 				end
-				
 				
 				nixyz = nixyz + 1 -- increment 3D noise index
 				nixz = nixz + 1 -- increment 2D noise index
