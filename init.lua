@@ -1,21 +1,27 @@
--- riverdev 0.1.1 by paramat
+-- riverdev 0.1.2 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
+
+-- Add beach and river sand, else desert sand
+-- detail down to 12n
 
 -- Parameters
 
 local YMIN = -33000
 local YMAX = 33000
 local YWATER = 1
-local TERZERO = 1 -- Terrain zero level
-local TERSCAL = 256 -- Terrain scale in nodes
-local TSTONE = 0.03 -- Density threshold for stone, depth of stone below surface
+local YSAND = 3
+local YTER = 1 -- Terrain zero level
+local TERSCA = 256 -- Terrain vertical scale in nodes
+local TSTONE = 0.02 -- Density threshold for stone, depth of stone below surface
 local BASAMP = 0.2
 local MIDAMP = 0.2
-local TERAMP = 0.4
+local TERAMP = 0.5
 local TRIVER = -0.03
+local TRSAND = -0.035
 local TSTREAM = -0.01
+local TSSAND = -0.01
 
 -- 3D noise for terrain
 
@@ -24,7 +30,7 @@ local np_terrain = {
 	scale = 1,
 	spread = {x=384, y=192, z=384},
 	seed = 5900033,
-	octaves = 5,
+	octaves = 6,
 	persist = 0.67
 }
 
@@ -33,9 +39,9 @@ local np_terrain = {
 local np_mid = {
 	offset = 0,
 	scale = 1,
-	spread = {x=768, y=768, z=768}, -- spread is still stated with xyz values
+	spread = {x=768, y=768, z=768},
 	seed = 85546,
-	octaves = 4,
+	octaves = 5,
 	persist = 0.5
 }
 
@@ -44,7 +50,7 @@ local np_mid = {
 local np_base = {
 	offset = 0,
 	scale = 1,
-	spread = {x=1536, y=1536, z=1536}, -- spread is still stated with xyz values
+	spread = {x=1536, y=1536, z=1536},
 	seed = -990054,
 	octaves = 3,
 	persist = 0.33
@@ -168,6 +174,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_air = minetest.get_content_id("air")
 	local c_water = minetest.get_content_id("default:water_source")
 	local c_sand = minetest.get_content_id("default:sand")
+	local c_desand = minetest.get_content_id("default:desert_sand")
 	local c_stone = minetest.get_content_id("riverdev:stone")
 	local c_freshwater = minetest.get_content_id("riverdev:freshwater")
 	
@@ -205,19 +212,27 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				local n_mid = nvals_mid[nixz]
 				local n_base = nvals_base[nixz]
 				
-				local grad = (TERZERO - y) / TERSCAL
+				local grad = (YTER - y) / TERSCA
 				local densitybas = n_base * BASAMP + grad
 				local densitymid = math.abs(n_mid) * MIDAMP + densitybas
 				local density = math.abs(n_terrain) * TERAMP * math.abs(n_mid) + densitymid
 				
 				local triver = TRIVER * (1 - n_base)
+				local trsand = TRSAND * (1 - n_base)
 				local tstream = TSTREAM * (1 - math.abs(n_mid))
+				local tssand = TSSAND * (1 - math.abs(n_mid))
 				
 				if density >= TSTONE then -- stone
 					data[vi] = c_stone
 					stable[si] = stable[si] + 1
 				elseif density >= 0 and density < TSTONE and stable[si] >= 2 then -- fine materials
-					data[vi] = c_sand
+					if y <= YSAND + math.random() * 2
+					or densitybas >= trsand + math.random() * 0.002
+					or densitymid >= tssand + math.random() * 0.002 then
+						data[vi] = c_sand
+					else
+						data[vi] = c_desand
+					end
 				elseif y <= YWATER and density < TSTONE then -- sea water
 					data[vi] = c_water
 					stable[si] = 0
