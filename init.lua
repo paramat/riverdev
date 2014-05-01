@@ -1,10 +1,12 @@
--- riverdev 0.1.2 by paramat
+-- riverdev 0.1.3 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
 
--- Add beach and river sand, else desert sand
--- detail down to 12n
+-- thin dirt with altitude
+-- dirt and grass
+-- fine detail back to 24n
+-- Add mixwater
 
 -- Parameters
 
@@ -14,14 +16,14 @@ local YWATER = 1
 local YSAND = 3
 local YTER = 1 -- Terrain zero level
 local TERSCA = 256 -- Terrain vertical scale in nodes
-local TSTONE = 0.02 -- Density threshold for stone, depth of stone below surface
+local TSTONE = 0.02
 local BASAMP = 0.2
 local MIDAMP = 0.2
 local TERAMP = 0.5
 local TRIVER = -0.03
-local TRSAND = -0.035
+local TRSAND = -0.033
 local TSTREAM = -0.01
-local TSSAND = -0.01
+local TSSAND = -0.011
 
 -- 3D noise for terrain
 
@@ -30,7 +32,7 @@ local np_terrain = {
 	scale = 1,
 	spread = {x=384, y=192, z=384},
 	seed = 5900033,
-	octaves = 6,
+	octaves = 5,
 	persist = 0.67
 }
 
@@ -73,6 +75,25 @@ minetest.register_node("riverdev:stone", {
 	groups = {cracky=3},
 	drop = "default:cobble",
 	sounds = default.node_sound_stone_defaults(),
+})
+
+minetest.register_node("riverdev:dirt", {
+	description = "Dirt",
+	tiles = {"default_dirt.png"},
+	is_ground_content = false,
+	groups = {crumbly=3,soil=1},
+	sounds = default.node_sound_dirt_defaults(),
+})
+
+minetest.register_node("riverdev:grass", {
+	description = "Grass",
+	tiles = {"default_grass.png", "default_dirt.png", "default_grass.png"},
+	is_ground_content = false,
+	groups = {crumbly=3,soil=1},
+	drop = "riverdev:dirt",
+	sounds = default.node_sound_dirt_defaults({
+		footstep = {name="default_grass_footstep", gain=0.25},
+	}),
 })
 
 minetest.register_node("riverdev:freshwater", {
@@ -146,7 +167,82 @@ minetest.register_node("riverdev:freshwaterflow", {
 	liquid_viscosity = WATER_VISC,
 	liquid_renewable = false,
 	liquid_range = 0,
-	post_effect_color = {a=64, r=100, g=150, b=200},
+	post_effect_color = {a=64, r=100, g=130, b=200},
+	groups = {water=3, liquid=3, puts_out_fire=1, not_in_creative_inventory=1},
+})
+
+minetest.register_node("riverdev:mixwater", {
+	description = "Mixed Water Source",
+	inventory_image = minetest.inventorycube("riverdev_mixwater.png"),
+	drawtype = "liquid",
+	tiles = {
+		{
+			name="riverdev_mixwateranim.png",
+			animation={type="vertical_frames",
+			aspect_w=16, aspect_h=16, length=2.0}
+		}
+	},
+	special_tiles = {
+		{
+			name="riverdev_mixwateranim.png",
+			animation={type="vertical_frames",
+			aspect_w=16, aspect_h=16, length=2.0},
+			backface_culling = false,
+		}
+	},
+	alpha = WATER_ALPHA,
+	paramtype = "light",
+	is_ground_content = false,
+	walkable = false,
+	pointable = false,
+	diggable = false,
+	buildable_to = true,
+	drop = "",
+	drowning = 1,
+	liquidtype = "source",
+	liquid_alternative_flowing = "riverdev:mixwaterflow",
+	liquid_alternative_source = "riverdev:mixwater",
+	liquid_viscosity = WATER_VISC,
+	liquid_renewable = false,
+	liquid_range = 0,
+	post_effect_color = {a=64, r=100, g=115, b=200},
+	groups = {water=3, liquid=3, puts_out_fire=1},
+})
+
+minetest.register_node("riverdev:mixwaterflow", {
+	description = "Flowing Mixed Water",
+	inventory_image = minetest.inventorycube("riverdev_mixwater.png"),
+	drawtype = "flowingliquid",
+	tiles = {"riverdev_mixwater.png"},
+	special_tiles = {
+		{
+			image="riverdev_mixwaterflowanim.png",
+			backface_culling=false,
+			animation={type="vertical_frames", aspect_w=16, aspect_h=16, length=0.8}
+		},
+		{
+			image="riverdev_mixwaterflowanim.png",
+			backface_culling=true,
+			animation={type="vertical_frames", aspect_w=16, aspect_h=16, length=0.8}
+		},
+	},
+	alpha = WATER_ALPHA,
+	paramtype = "light",
+	paramtype2 = "flowingliquid",
+	is_ground_content = false,
+	walkable = false,
+	pointable = false,
+	diggable = false,
+	buildable_to = true,
+	drop = "",
+	drowning = 1,
+	liquidtype = "flowing",
+	liquid_alternative_flowing = "riverdev:mixwaterflow",
+	liquid_alternative_source = "riverdev:mixwater",
+	liquid_viscosity = WATER_VISC,
+	liquid_renewable = false,
+	liquid_range = 0,
+	post_effect_color = {a=64, r=100, g=115, b=200},
 	groups = {water=3, liquid=3, puts_out_fire=1, not_in_creative_inventory=1},
 })
 
@@ -174,9 +270,11 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_air = minetest.get_content_id("air")
 	local c_water = minetest.get_content_id("default:water_source")
 	local c_sand = minetest.get_content_id("default:sand")
-	local c_desand = minetest.get_content_id("default:desert_sand")
+	local c_dirt = minetest.get_content_id("riverdev:dirt")
+	local c_grass = minetest.get_content_id("riverdev:grass")
 	local c_stone = minetest.get_content_id("riverdev:stone")
 	local c_freshwater = minetest.get_content_id("riverdev:freshwater")
+	local c_mixwater = minetest.get_content_id("riverdev:mixwater")
 	
 	local sidelen = x1 - x0 + 1
 	local chulens = {x=sidelen, y=sidelen, z=sidelen}
@@ -184,21 +282,24 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local minposxz = {x=x0, y=z0}
 	
 	local nvals_terrain = minetest.get_perlin_map(np_terrain, chulens):get3dMap_flat(minposxyz)
-	
 	local nvals_mid = minetest.get_perlin_map(np_mid, chulens):get2dMap_flat(minposxz)
 	local nvals_base = minetest.get_perlin_map(np_base, chulens):get2dMap_flat(minposxz)
 	
-	local nixyz = 1 -- 3D noise index
-	local nixz = 1 -- 2D noise index
+	local nixyz = 1
+	local nixz = 1
 	local stable = {}
+	local under = {}
 	for z = z0, z1 do
 		for x = x0, x1 do
 			local si = x - x0 + 1
+			under[si] = 0
 			local nodename = minetest.get_node({x=x,y=y0-1,z=z}).name
 			if nodename == "air"
 			or nodename == "default:water_source"
 			or nodename == "riverdev:freshwater"
-			or nodename == "riverdev:freshwaterflow" then
+			or nodename == "riverdev:freshwaterflow"
+			or nodename == "riverdev:mixwater"
+			or nodename == "riverdev:mixwaterflow" then
 				stable[si] = 0
 			else
 				stable[si] = 2
@@ -206,53 +307,74 @@ minetest.register_on_generated(function(minp, maxp, seed)
 		end
 		for y = y0, y1 do
 			local vi = area:index(x0, y, z)
+			local viu = area:index(x0, y-1, z)
 			for x = x0, x1 do
 				local si = x - x0 + 1
 				local n_terrain = nvals_terrain[nixyz]
-				local n_mid = nvals_mid[nixz]
+				local n_absmid = math.abs(nvals_mid[nixz])
 				local n_base = nvals_base[nixz]
 				
 				local grad = (YTER - y) / TERSCA
 				local densitybas = n_base * BASAMP + grad
-				local densitymid = math.abs(n_mid) * MIDAMP + densitybas
-				local density = math.abs(n_terrain) * TERAMP * math.abs(n_mid) + densitymid
+				local densitymid = n_absmid * MIDAMP + densitybas
+				local density = math.abs(n_terrain) * TERAMP * n_absmid
+				+ densitymid
 				
+				local tstone = TSTONE * (1 + grad)
 				local triver = TRIVER * (1 - n_base)
 				local trsand = TRSAND * (1 - n_base)
-				local tstream = TSTREAM * (1 - math.abs(n_mid))
-				local tssand = TSSAND * (1 - math.abs(n_mid))
+				local tstream = TSTREAM * (1 - n_absmid)
+				local tssand = TSSAND * (1 - n_absmid)
 				
-				if density >= TSTONE then -- stone
+				if density >= tstone then -- stone
 					data[vi] = c_stone
 					stable[si] = stable[si] + 1
-				elseif density >= 0 and density < TSTONE and stable[si] >= 2 then -- fine materials
+					under[si] = 0
+				elseif density >= 0 and density < tstone and stable[si] >= 2 then -- fine materials
 					if y <= YSAND + math.random() * 2
 					or densitybas >= trsand + math.random() * 0.002
 					or densitymid >= tssand + math.random() * 0.002 then
 						data[vi] = c_sand
+						under[si] = 0
 					else
-						data[vi] = c_desand
+						data[vi] = c_dirt
+						under[si] = 1
 					end
-				elseif y <= YWATER and density < TSTONE then -- sea water
+				elseif y <= YWATER and density < tstone then -- sea water
 					data[vi] = c_water
 					stable[si] = 0
+					under[si] = 0
 				elseif densitybas >= triver then -- river water
-					data[vi] = c_freshwater
+					if y == YWATER + 1 then
+						data[vi] = c_mixwater
+					else
+						data[vi] = c_freshwater
+					end
 					stable[si] = 0
+					under[si] = 0
 				elseif densitymid >= tstream then -- stream water
 					data[vi] = c_freshwater
 					stable[si] = 0
+					under[si] = 0
+				elseif density < 0 and under[si] ~= 0 then -- air above surface
+					if under[si] == 1 then
+						data[viu] = c_grass
+					end
+					stable[si] = 0
+					under[si] = 0
 				else -- air
 					stable[si] = 0
+					under[si] = 0
 				end
 				
-				nixyz = nixyz + 1 -- increment 3D noise index
-				nixz = nixz + 1 -- increment 2D noise index
+				nixyz = nixyz + 1
+				nixz = nixz + 1
 				vi = vi + 1
+				viu = viu + 1
 			end
-			nixz = nixz - 80 -- rewind 2D noise index by 80 nodes for next x row above
+			nixz = nixz - 80
 		end
-		nixz = nixz + 80 -- fast-forward 2D noise index by 80 nodes for next northward xy plane
+		nixz = nixz + 80
 	end
 	
 	vm:set_data(data)
