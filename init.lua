@@ -1,12 +1,7 @@
--- riverdev 0.1.3 by paramat
+-- riverdev 0.1.4 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
-
--- thin dirt with altitude
--- dirt and grass
--- fine detail back to 24n
--- Add mixwater
 
 -- Parameters
 
@@ -277,55 +272,67 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_mixwater = minetest.get_content_id("riverdev:mixwater")
 	
 	local sidelen = x1 - x0 + 1
-	local chulens = {x=sidelen, y=sidelen, z=sidelen}
-	local minposxyz = {x=x0, y=y0, z=z0}
+	local chulens = {x=sidelen, y=sidelen+2, z=sidelen}
+	local minposxyz = {x=x0, y=y0-1, z=z0}
 	local minposxz = {x=x0, y=z0}
 	
 	local nvals_terrain = minetest.get_perlin_map(np_terrain, chulens):get3dMap_flat(minposxyz)
 	local nvals_mid = minetest.get_perlin_map(np_mid, chulens):get2dMap_flat(minposxz)
 	local nvals_base = minetest.get_perlin_map(np_base, chulens):get2dMap_flat(minposxz)
 	
+	local ungen = false
+	if minetest.get_node({x=x0, y=y0-1, z=z0}).name == "ignore" then
+		ungen = true
+	end
+	
 	local nixyz = 1
 	local nixz = 1
 	local stable = {}
 	local under = {}
 	for z = z0, z1 do
+	for y = y0 - 1, y1 + 1 do
+		local vi = area:index(x0, y, z)
+		local viu = area:index(x0, y-1, z)
 		for x = x0, x1 do
 			local si = x - x0 + 1
-			under[si] = 0
-			local nodename = minetest.get_node({x=x,y=y0-1,z=z}).name
-			if nodename == "air"
-			or nodename == "default:water_source"
-			or nodename == "riverdev:freshwater"
-			or nodename == "riverdev:freshwaterflow"
-			or nodename == "riverdev:mixwater"
-			or nodename == "riverdev:mixwaterflow" then
-				stable[si] = 0
-			else
-				stable[si] = 2
-			end
-		end
-		for y = y0, y1 do
-			local vi = area:index(x0, y, z)
-			local viu = area:index(x0, y-1, z)
-			for x = x0, x1 do
-				local si = x - x0 + 1
-				local n_terrain = nvals_terrain[nixyz]
-				local n_absmid = math.abs(nvals_mid[nixz])
-				local n_base = nvals_base[nixz]
+			local n_terrain = nvals_terrain[nixyz]
+			local n_absmid = math.abs(nvals_mid[nixz])
+			local n_base = nvals_base[nixz]
+			
+			local grad = (YTER - y) / TERSCA
+			local densitybas = n_base * BASAMP + grad
+			local densitymid = n_absmid * MIDAMP + densitybas
+			local density = math.abs(n_terrain) * TERAMP * n_absmid
+			+ densitymid
+			
+			local tstone = TSTONE * (1 + grad)
+			local triver = TRIVER * (1 - n_base)
+			local trsand = TRSAND * (1 - n_base)
+			local tstream = TSTREAM * (1 - n_absmid)
+			local tssand = TSSAND * (1 - n_absmid)
 				
-				local grad = (YTER - y) / TERSCA
-				local densitybas = n_base * BASAMP + grad
-				local densitymid = n_absmid * MIDAMP + densitybas
-				local density = math.abs(n_terrain) * TERAMP * n_absmid
-				+ densitymid
-				
-				local tstone = TSTONE * (1 + grad)
-				local triver = TRIVER * (1 - n_base)
-				local trsand = TRSAND * (1 - n_base)
-				local tstream = TSTREAM * (1 - n_absmid)
-				local tssand = TSSAND * (1 - n_absmid)
-				
+			if y == y0 - 1 then -- overgeneration, initialise tables
+				under[si] = 0
+				if ungen then
+					if density >= 0 then
+						stable[si] = 2
+					else
+						stable[si] = 0
+					end
+				else
+					local nodename = minetest.get_node({x=x,y=y0-1,z=z}).name
+					if nodename == "air"
+					or nodename == "default:water_source"
+					or nodename == "riverdev:freshwater"
+					or nodename == "riverdev:freshwaterflow"
+					or nodename == "riverdev:mixwater"
+					or nodename == "riverdev:mixwaterflow" then
+						stable[si] = 0
+					else
+						stable[si] = 2
+					end
+				end
+			elseif y >= y0 and y <= y1 then -- chunk generation
 				if density >= tstone then -- stone
 					data[vi] = c_stone
 					stable[si] = stable[si] + 1
@@ -366,15 +373,22 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					stable[si] = 0
 					under[si] = 0
 				end
-				
-				nixyz = nixyz + 1
-				nixz = nixz + 1
-				vi = vi + 1
-				viu = viu + 1
+			elseif y == y1 + 1 then -- overgeneration, detect surface, add surface nodes
+				if density < 0 and under[si] ~= 0 then
+					if under[si] == 1 then
+						data[viu] = c_grass
+					end
+				end
 			end
-			nixz = nixz - 80
+				
+			nixyz = nixyz + 1
+			nixz = nixz + 1
+			vi = vi + 1
+			viu = viu + 1
 		end
-		nixz = nixz + 80
+		nixz = nixz - 80
+	end
+	nixz = nixz + 80
 	end
 	
 	vm:set_data(data)
