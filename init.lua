@@ -1,4 +1,4 @@
--- riverdev 0.1.4 by paramat
+-- riverdev 0.2.0 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
@@ -9,16 +9,19 @@ local YMIN = -33000
 local YMAX = 33000
 local YWATER = 1
 local YSAND = 3
-local YTER = 1 -- Terrain zero level
-local TERSCA = 256 -- Terrain vertical scale in nodes
+local YTER = -128 -- Terrain zero level
+
+local TERSCA = 512 -- Terrain vertical scale in nodes
+local BASAMP = 0.4
+local MIDAMP = 0.1
+local TERAMP = 0.4
+local ATANAMP = 1.1
+
 local TSTONE = 0.02
-local BASAMP = 0.2
-local MIDAMP = 0.2
-local TERAMP = 0.5
-local TRIVER = -0.03
-local TRSAND = -0.033
-local TSTREAM = -0.01
-local TSSAND = -0.011
+local TRIVER = -0.015
+local TRSAND = -0.018
+local TSTREAM = -0.005
+local TSSAND = -0.006
 
 -- 3D noise for terrain
 
@@ -47,7 +50,7 @@ local np_mid = {
 local np_base = {
 	offset = 0,
 	scale = 1,
-	spread = {x=1536, y=1536, z=1536},
+	spread = {x=3072, y=3072, z=3072},
 	seed = -990054,
 	octaves = 3,
 	persist = 0.33
@@ -295,19 +298,21 @@ minetest.register_on_generated(function(minp, maxp, seed)
 		local viu = area:index(x0, y-1, z)
 		for x = x0, x1 do
 			local si = x - x0 + 1
-			local n_terrain = nvals_terrain[nixyz]
+			local n_absterrain = math.abs(nvals_terrain[nixyz])
 			local n_absmid = math.abs(nvals_mid[nixz])
-			local n_base = nvals_base[nixz]
+			local n_absbase = math.abs(nvals_base[nixz])
 			
-			local grad = (YTER - y) / TERSCA
-			local densitybas = n_base * BASAMP + grad
-			local densitymid = n_absmid * MIDAMP + densitybas
-			local density = math.abs(n_terrain) * TERAMP * n_absmid
-			+ densitymid
+			local n_invbase = (1 - n_absbase)
+			local grad = math.atan((YTER - y) / TERSCA) * ATANAMP
+			local densitybase = n_invbase * BASAMP + grad
+			local densitymid = n_absmid * MIDAMP + densitybase
+			local terexp = 0.5 + n_invbase * 0.5
+			local teramp = n_invbase * TERAMP
+			local density = n_absterrain ^ terexp * teramp * n_absmid + densitymid
 			
 			local tstone = TSTONE * (1 + grad)
-			local triver = TRIVER * (1 - n_base)
-			local trsand = TRSAND * (1 - n_base)
+			local triver = TRIVER * (0.3 + n_absbase)
+			local trsand = TRSAND * (0.3 + n_absbase)
 			local tstream = TSTREAM * (1 - n_absmid)
 			local tssand = TSSAND * (1 - n_absmid)
 				
@@ -339,7 +344,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					under[si] = 0
 				elseif density >= 0 and density < tstone and stable[si] >= 2 then -- fine materials
 					if y <= YSAND + math.random() * 2
-					or densitybas >= trsand + math.random() * 0.002
+					or densitybase >= trsand + math.random() * 0.002
 					or densitymid >= tssand + math.random() * 0.002 then
 						data[vi] = c_sand
 						under[si] = 0
@@ -351,7 +356,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					data[vi] = c_water
 					stable[si] = 0
 					under[si] = 0
-				elseif densitybas >= triver then -- river water
+				elseif densitybase >= triver then -- river water
 					if y == YWATER + 1 then
 						data[vi] = c_mixwater
 					else
@@ -360,7 +365,11 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					stable[si] = 0
 					under[si] = 0
 				elseif densitymid >= tstream then -- stream water
-					data[vi] = c_freshwater
+					if y == YWATER + 1 then
+						data[vi] = c_mixwater
+					else
+						data[vi] = c_freshwater
+					end
 					stable[si] = 0
 					under[si] = 0
 				elseif density < 0 and under[si] ~= 0 then -- air above surface
