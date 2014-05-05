@@ -1,27 +1,30 @@
--- riverdev 0.2.0 by paramat
+-- riverdev 0.3.0 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
+
+-- TODO
+-- add XL scale noise, amplitude 0.1, YTER = -128 as a mirror of cloud level
 
 -- Parameters
 
 local YMIN = -33000
 local YMAX = 33000
 local YWATER = 1
-local YSAND = 3
-local YTER = -128 -- Terrain zero level
+local YSAND = 3 -- Top of beach
+local YTER = -128 -- Terrain zero level, average seabed level
 
 local TERSCA = 512 -- Terrain vertical scale in nodes
-local BASAMP = 0.4
-local MIDAMP = 0.1
-local TERAMP = 0.4
-local ATANAMP = 1.1
+local BASAMP = 0.3 -- Base amplitude. Ridge network structure
+local MIDAMP = 0.1 -- Mid amplitude. River valley structure
+local TERAMP = 0.4 -- Primary terrain amplitude. Stream valley structure
+local ATANAMP = 1 -- Arctan density gradient amplitude. Controls size/amount of floatlands above ridges
 
 local TSTONE = 0.02
-local TRIVER = -0.015
-local TRSAND = -0.018
-local TSTREAM = -0.005
-local TSSAND = -0.006
+local TRIVER = -0.02
+local TRSAND = -0.025
+local TSTREAM = -0.004
+local TSSAND = -0.005
 
 -- 3D noise for terrain
 
@@ -306,13 +309,13 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local grad = math.atan((YTER - y) / TERSCA) * ATANAMP
 			local densitybase = n_invbase * BASAMP + grad
 			local densitymid = n_absmid * MIDAMP + densitybase
-			local terexp = 0.5 + n_invbase * 0.5
+			local terexp = 0.2 + n_invbase * 0.8
 			local teramp = n_invbase * TERAMP
 			local density = n_absterrain ^ terexp * teramp * n_absmid + densitymid
 			
 			local tstone = TSTONE * (1 + grad)
-			local triver = TRIVER * (0.3 + n_absbase)
-			local trsand = TRSAND * (0.3 + n_absbase)
+			local triver = TRIVER * n_absbase
+			local trsand = TRSAND * n_absbase
 			local tstream = TSTREAM * (1 - n_absmid)
 			local tssand = TSSAND * (1 - n_absmid)
 				
