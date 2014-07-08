@@ -1,24 +1,24 @@
--- riverdev 0.3.0 by paramat
+-- riverdev 0.4.0 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
 
--- TODO
--- add XL scale noise, amplitude 0.1, YTER = -128 as a mirror of cloud level
+-- LVM checks chunk below
+-- remove atan grad
+-- add 2 paths
 
 -- Parameters
 
 local YMIN = -33000
 local YMAX = 33000
 local YWATER = 1
-local YSAND = 3 -- Top of beach
+local YSAND = 5 -- Top of beach
 local YTER = -128 -- Terrain zero level, average seabed level
 
 local TERSCA = 512 -- Terrain vertical scale in nodes
 local BASAMP = 0.3 -- Base amplitude. Ridge network structure
 local MIDAMP = 0.1 -- Mid amplitude. River valley structure
-local TERAMP = 0.4 -- Primary terrain amplitude. Stream valley structure
-local ATANAMP = 1 -- Arctan density gradient amplitude. Controls size/amount of floatlands above ridges
+local TERAMP = 0.6 -- Primary terrain amplitude. Stream / path valley structure
 
 local TSTONE = 0.02
 local TRIVER = -0.02
@@ -59,6 +59,28 @@ local np_base = {
 	persist = 0.33
 }
 
+-- 2D noises for patha / top terrain
+
+local np_patha = {
+	offset = 0,
+	scale = 1,
+	spread = {x=384, y=384, z=384},
+	seed = 7000023,
+	octaves = 4,
+	persist = 0.4
+}
+
+-- 2D noises for pathb / top terrain
+
+local np_pathb = {
+	offset = 0,
+	scale = 1,
+	spread = {x=384, y=384, z=384},
+	seed = 23,
+	octaves = 4,
+	persist = 0.4
+}
+
 -- Stuff
 
 riverdev = {}
@@ -95,6 +117,14 @@ minetest.register_node("riverdev:grass", {
 	sounds = default.node_sound_dirt_defaults({
 		footstep = {name="default_grass_footstep", gain=0.25},
 	}),
+})
+
+minetest.register_node("riverdev:path", {
+	description = "Dirt Path",
+	tiles = {"riverdev_path.png"},
+	is_ground_content = false,
+	groups = {crumbly=3},
+	sounds = default.node_sound_dirt_defaults(),
 })
 
 minetest.register_node("riverdev:freshwater", {
@@ -269,49 +299,70 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local data = vm:get_data()
 	
 	local c_air = minetest.get_content_id("air")
+	local c_ignore = minetest.get_content_id("ignore")
 	local c_water = minetest.get_content_id("default:water_source")
 	local c_sand = minetest.get_content_id("default:sand")
+
 	local c_dirt = minetest.get_content_id("riverdev:dirt")
 	local c_grass = minetest.get_content_id("riverdev:grass")
 	local c_stone = minetest.get_content_id("riverdev:stone")
+	local c_path = minetest.get_content_id("riverdev:path")
 	local c_freshwater = minetest.get_content_id("riverdev:freshwater")
 	local c_mixwater = minetest.get_content_id("riverdev:mixwater")
+	local c_freshwaterflow = minetest.get_content_id("riverdev:freshwaterflow")
+	local c_mixwaterflow = minetest.get_content_id("riverdev:mixwaterflow")
 	
-	local sidelen = x1 - x0 + 1
-	local chulens = {x=sidelen, y=sidelen+2, z=sidelen}
-	local minposxyz = {x=x0, y=y0-1, z=z0}
-	local minposxz = {x=x0, y=z0}
+	local sidelen = x1 - x0 + 1 -- chunk sidelen
+	local chulensxyz = {x=sidelen+1, y=sidelen+2, z=sidelen+1}
+	local minposxyz = {x=x0-1, y=y0-1, z=z0-1}
+	local chulensxz = {x=sidelen+1, y=sidelen+1, z=sidelen} -- different because here x=x, y=z
+	local minposxz = {x=x0-1, y=z0-1}
 	
-	local nvals_terrain = minetest.get_perlin_map(np_terrain, chulens):get3dMap_flat(minposxyz)
-	local nvals_mid = minetest.get_perlin_map(np_mid, chulens):get2dMap_flat(minposxz)
-	local nvals_base = minetest.get_perlin_map(np_base, chulens):get2dMap_flat(minposxz)
+	local nvals_terrain = minetest.get_perlin_map(np_terrain, chulensxyz):get3dMap_flat(minposxyz)
+
+	local nvals_mid = minetest.get_perlin_map(np_mid, chulensxz):get2dMap_flat(minposxz)
+	local nvals_base = minetest.get_perlin_map(np_base, chulensxz):get2dMap_flat(minposxz)
+	local nvals_patha = minetest.get_perlin_map(np_patha, chulensxz):get2dMap_flat(minposxz)
+	local nvals_pathb = minetest.get_perlin_map(np_pathb, chulensxz):get2dMap_flat(minposxz)
 	
-	local ungen = false
-	if minetest.get_node({x=x0, y=y0-1, z=z0}).name == "ignore" then
-		ungen = true
-	end
+	local viu = area:index(x0, y0-1, z0)
+	local ungen = data[viu] == c_ignore
 	
 	local nixyz = 1
 	local nixz = 1
 	local stable = {}
 	local under = {}
-	for z = z0, z1 do
+	for z = z0 - 1, z1 do
 	for y = y0 - 1, y1 + 1 do
-		local vi = area:index(x0, y, z)
-		local viu = area:index(x0, y-1, z)
-		for x = x0, x1 do
-			local si = x - x0 + 1
+		local vi = area:index(x0-1, y, z)
+		local viu = area:index(x0-1, y-1, z)
+		local n_xprepatha = false
+		local n_xprepathb = false
+		for x = x0 - 1, x1 do
+			local si = x - x0 + 2
+			local nodid = data[vi]
+			local nodidu = data[viu]
+			local chunk = (x >= x0 and z >= z0)
+
+			local n_patha = nvals_patha[nixz]
+			local n_abspatha = math.abs(n_patha)
+			local n_zprepatha = nvals_patha[(nixz - sidelen - 1)]
+
+			local n_pathb = nvals_pathb[nixz]
+			local n_abspathb = math.abs(n_pathb)
+			local n_zprepathb = nvals_pathb[(nixz - sidelen - 1)]
+
 			local n_absterrain = math.abs(nvals_terrain[nixyz])
 			local n_absmid = math.abs(nvals_mid[nixz])
 			local n_absbase = math.abs(nvals_base[nixz])
 			
 			local n_invbase = (1 - n_absbase)
-			local grad = math.atan((YTER - y) / TERSCA) * ATANAMP
+			local grad = (YTER - y) / TERSCA
 			local densitybase = n_invbase * BASAMP + grad
 			local densitymid = n_absmid * MIDAMP + densitybase
-			local terexp = 0.2 + n_invbase * 0.8
+			local terexp = 0.5 + n_invbase * 0.5
 			local teramp = n_invbase * TERAMP
-			local density = n_absterrain ^ terexp * teramp * n_absmid + densitymid
+			local density = n_absterrain ^ terexp * teramp * n_absmid * (0.2 + n_abspatha * n_abspathb) + densitymid
 			
 			local tstone = TSTONE * (1 + grad)
 			local triver = TRIVER * n_absbase
@@ -319,38 +370,59 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local tstream = TSTREAM * (1 - n_absmid)
 			local tssand = TSSAND * (1 - n_absmid)
 				
-			if y == y0 - 1 then -- overgeneration, initialise tables
+			if chunk and y == y0 - 1 then -- overgeneration, initialise tables
 				under[si] = 0
-				if ungen then
+				if ungen then -- guess by calculating density
 					if density >= 0 then
 						stable[si] = 2
 					else
 						stable[si] = 0
 					end
-				else
-					local nodename = minetest.get_node({x=x,y=y0-1,z=z}).name
-					if nodename == "air"
-					or nodename == "default:water_source"
-					or nodename == "riverdev:freshwater"
-					or nodename == "riverdev:freshwaterflow"
-					or nodename == "riverdev:mixwater"
-					or nodename == "riverdev:mixwaterflow" then
+				else -- scan top layer of chunk below
+					if nodid == c_air
+					or nodid == c_water
+					or nodid == c_freshwater
+					or nodid == c_freshwaterflow
+					or nodid == c_mixwater
+					or nodid == c_mixwaterflow then
 						stable[si] = 0
 					else
 						stable[si] = 2
 					end
 				end
-			elseif y >= y0 and y <= y1 then -- chunk generation
+			elseif chunk and y >= y0 and y <= y1 then -- chunk generation
 				if density >= tstone then -- stone
 					data[vi] = c_stone
 					stable[si] = stable[si] + 1
+					under[si] = 0
+				elseif density < 0 and under[si] ~= 0 and y > YSAND and densitybase < trsand and densitymid < tssand
+				and (((n_patha >= 0 and n_xprepatha < 0) or (n_patha < 0 and n_xprepatha >= 0)) -- patha
+				or ((n_patha >= 0 and n_zprepatha < 0) or (n_patha < 0 and n_zprepatha >= 0))) then
+					for i = -1, 1 do
+					for k = -1, 1 do
+						local vip = area:index(x+i, y-1, z+k)
+						data[vip] = c_path
+					end
+					end
+					stable[si] = 0
+					under[si] = 0
+				elseif density < 0 and under[si] ~= 0 and y > YSAND and densitybase < trsand and densitymid < tssand
+				and (((n_pathb >= 0 and n_xprepathb < 0) or (n_pathb < 0 and n_xprepathb >= 0)) -- pathb
+				or ((n_pathb >= 0 and n_zprepathb < 0) or (n_pathb < 0 and n_zprepathb >= 0))) then
+					for i = -1, 1 do
+					for k = -1, 1 do
+						local vip = area:index(x+i, y-1, z+k)
+						data[vip] = c_path
+					end
+					end
+					stable[si] = 0
 					under[si] = 0
 				elseif density >= 0 and density < tstone and stable[si] >= 2 then -- fine materials
 					if y <= YSAND + math.random() * 2
 					or densitybase >= trsand + math.random() * 0.002
 					or densitymid >= tssand + math.random() * 0.002 then
 						data[vi] = c_sand
-						under[si] = 0
+						under[si] = 2
 					else
 						data[vi] = c_dirt
 						under[si] = 1
@@ -376,7 +448,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					stable[si] = 0
 					under[si] = 0
 				elseif density < 0 and under[si] ~= 0 then -- air above surface
-					if under[si] == 1 then
+					if under[si] == 1 and nodidu ~= c_path then
 						data[viu] = c_grass
 					end
 					stable[si] = 0
@@ -385,7 +457,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					stable[si] = 0
 					under[si] = 0
 				end
-			elseif y == y1 + 1 then -- overgeneration, detect surface, add surface nodes
+			elseif chunk and y == y1 + 1 then -- overgeneration, detect surface, add surface nodes
 				if density < 0 and under[si] ~= 0 then
 					if under[si] == 1 then
 						data[viu] = c_grass
@@ -393,14 +465,16 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				end
 			end
 				
+			n_xprepatha = n_patha
+			n_xprepathb = n_pathb
 			nixyz = nixyz + 1
 			nixz = nixz + 1
 			vi = vi + 1
 			viu = viu + 1
 		end
-		nixz = nixz - 80
+		nixz = nixz - sidelen - 1
 	end
-	nixz = nixz + 80
+	nixz = nixz + sidelen + 1
 	end
 	
 	vm:set_data(data)
