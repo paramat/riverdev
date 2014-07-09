@@ -1,19 +1,15 @@
--- riverdev 0.4.0 by paramat
+-- riverdev 0.4.1 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
-
--- LVM checks chunk below
--- remove atan grad
--- add 2 paths
 
 -- Parameters
 
 local YMIN = -33000
 local YMAX = 33000
 local YWATER = 1
-local YSAND = 5 -- Top of beach
-local YTER = -128 -- Terrain zero level, average seabed level
+local YSAND = 4 -- Top of beach
+local YTER = -64 -- Terrain zero level, average seabed level
 
 local TERSCA = 512 -- Terrain vertical scale in nodes
 local BASAMP = 0.3 -- Base amplitude. Ridge network structure
@@ -23,8 +19,8 @@ local TERAMP = 0.6 -- Primary terrain amplitude. Stream / path valley structure
 local TSTONE = 0.02
 local TRIVER = -0.02
 local TRSAND = -0.025
-local TSTREAM = -0.004
-local TSSAND = -0.005
+
+local APPCHA = 1 / 4 ^ 2 -- Appletree maximum chance per grass node. 1 / n ^ 2 where n = minimum average distance between flora
 
 -- 3D noise for terrain
 
@@ -56,7 +52,7 @@ local np_base = {
 	spread = {x=3072, y=3072, z=3072},
 	seed = -990054,
 	octaves = 3,
-	persist = 0.33
+	persist = 0.4
 }
 
 -- 2D noises for patha / top terrain
@@ -66,7 +62,7 @@ local np_patha = {
 	scale = 1,
 	spread = {x=384, y=384, z=384},
 	seed = 7000023,
-	octaves = 4,
+	octaves = 3,
 	persist = 0.4
 }
 
@@ -81,201 +77,27 @@ local np_pathb = {
 	persist = 0.4
 }
 
+-- 2D noise for trees
+
+local np_tree = {
+	offset = 0,
+	scale = 1,
+	spread = {x=192, y=192, z=192},
+	seed = 133338,
+	octaves = 3,
+	persist = 0.5
+}
+
 -- Stuff
 
 riverdev = {}
 
+dofile(minetest.get_modpath("riverdev").."/functions.lua")
+dofile(minetest.get_modpath("riverdev").."/nodes.lua")
+
 minetest.register_on_mapgen_init(function(mgparams)
 	minetest.set_mapgen_params({mgname="singlenode"})
 end)
-
--- Nodes
-
-minetest.register_node("riverdev:stone", {
-	description = "Stone",
-	tiles = {"default_stone.png"},
-	is_ground_content = false,
-	groups = {cracky=3},
-	drop = "default:cobble",
-	sounds = default.node_sound_stone_defaults(),
-})
-
-minetest.register_node("riverdev:dirt", {
-	description = "Dirt",
-	tiles = {"default_dirt.png"},
-	is_ground_content = false,
-	groups = {crumbly=3,soil=1},
-	sounds = default.node_sound_dirt_defaults(),
-})
-
-minetest.register_node("riverdev:grass", {
-	description = "Grass",
-	tiles = {"default_grass.png", "default_dirt.png", "default_grass.png"},
-	is_ground_content = false,
-	groups = {crumbly=3,soil=1},
-	drop = "riverdev:dirt",
-	sounds = default.node_sound_dirt_defaults({
-		footstep = {name="default_grass_footstep", gain=0.25},
-	}),
-})
-
-minetest.register_node("riverdev:path", {
-	description = "Dirt Path",
-	tiles = {"riverdev_path.png"},
-	is_ground_content = false,
-	groups = {crumbly=3},
-	sounds = default.node_sound_dirt_defaults(),
-})
-
-minetest.register_node("riverdev:freshwater", {
-	description = "Fresh Water Source",
-	inventory_image = minetest.inventorycube("riverdev_freshwater.png"),
-	drawtype = "liquid",
-	tiles = {
-		{
-			name="riverdev_freshwateranim.png",
-			animation={type="vertical_frames",
-			aspect_w=16, aspect_h=16, length=2.0}
-		}
-	},
-	special_tiles = {
-		{
-			name="riverdev_freshwateranim.png",
-			animation={type="vertical_frames",
-			aspect_w=16, aspect_h=16, length=2.0},
-			backface_culling = false,
-		}
-	},
-	alpha = WATER_ALPHA,
-	paramtype = "light",
-	is_ground_content = false,
-	walkable = false,
-	pointable = false,
-	diggable = false,
-	buildable_to = true,
-	drop = "",
-	drowning = 1,
-	liquidtype = "source",
-	liquid_alternative_flowing = "riverdev:freshwaterflow",
-	liquid_alternative_source = "riverdev:freshwater",
-	liquid_viscosity = WATER_VISC,
-	liquid_renewable = false,
-	liquid_range = 0,
-	post_effect_color = {a=64, r=100, g=150, b=200},
-	groups = {water=3, liquid=3, puts_out_fire=1},
-})
-
-minetest.register_node("riverdev:freshwaterflow", {
-	description = "Fresh Flowing Water",
-	inventory_image = minetest.inventorycube("riverdev_freshwater.png"),
-	drawtype = "flowingliquid",
-	tiles = {"riverdev_freshwater.png"},
-	special_tiles = {
-		{
-			image="riverdev_freshwaterflowanim.png",
-			backface_culling=false,
-			animation={type="vertical_frames", aspect_w=16, aspect_h=16, length=0.8}
-		},
-		{
-			image="riverdev_freshwaterflowanim.png",
-			backface_culling=true,
-			animation={type="vertical_frames", aspect_w=16, aspect_h=16, length=0.8}
-		},
-	},
-	alpha = WATER_ALPHA,
-	paramtype = "light",
-	paramtype2 = "flowingliquid",
-	is_ground_content = false,
-	walkable = false,
-	pointable = false,
-	diggable = false,
-	buildable_to = true,
-	drop = "",
-	drowning = 1,
-	liquidtype = "flowing",
-	liquid_alternative_flowing = "riverdev:freshwaterflow",
-	liquid_alternative_source = "riverdev:freshwater",
-	liquid_viscosity = WATER_VISC,
-	liquid_renewable = false,
-	liquid_range = 0,
-	post_effect_color = {a=64, r=100, g=130, b=200},
-	groups = {water=3, liquid=3, puts_out_fire=1, not_in_creative_inventory=1},
-})
-
-minetest.register_node("riverdev:mixwater", {
-	description = "Mixed Water Source",
-	inventory_image = minetest.inventorycube("riverdev_mixwater.png"),
-	drawtype = "liquid",
-	tiles = {
-		{
-			name="riverdev_mixwateranim.png",
-			animation={type="vertical_frames",
-			aspect_w=16, aspect_h=16, length=2.0}
-		}
-	},
-	special_tiles = {
-		{
-			name="riverdev_mixwateranim.png",
-			animation={type="vertical_frames",
-			aspect_w=16, aspect_h=16, length=2.0},
-			backface_culling = false,
-		}
-	},
-	alpha = WATER_ALPHA,
-	paramtype = "light",
-	is_ground_content = false,
-	walkable = false,
-	pointable = false,
-	diggable = false,
-	buildable_to = true,
-	drop = "",
-	drowning = 1,
-	liquidtype = "source",
-	liquid_alternative_flowing = "riverdev:mixwaterflow",
-	liquid_alternative_source = "riverdev:mixwater",
-	liquid_viscosity = WATER_VISC,
-	liquid_renewable = false,
-	liquid_range = 0,
-	post_effect_color = {a=64, r=100, g=115, b=200},
-	groups = {water=3, liquid=3, puts_out_fire=1},
-})
-
-minetest.register_node("riverdev:mixwaterflow", {
-	description = "Flowing Mixed Water",
-	inventory_image = minetest.inventorycube("riverdev_mixwater.png"),
-	drawtype = "flowingliquid",
-	tiles = {"riverdev_mixwater.png"},
-	special_tiles = {
-		{
-			image="riverdev_mixwaterflowanim.png",
-			backface_culling=false,
-			animation={type="vertical_frames", aspect_w=16, aspect_h=16, length=0.8}
-		},
-		{
-			image="riverdev_mixwaterflowanim.png",
-			backface_culling=true,
-			animation={type="vertical_frames", aspect_w=16, aspect_h=16, length=0.8}
-		},
-	},
-	alpha = WATER_ALPHA,
-	paramtype = "light",
-	paramtype2 = "flowingliquid",
-	is_ground_content = false,
-	walkable = false,
-	pointable = false,
-	diggable = false,
-	buildable_to = true,
-	drop = "",
-	drowning = 1,
-	liquidtype = "flowing",
-	liquid_alternative_flowing = "riverdev:mixwaterflow",
-	liquid_alternative_source = "riverdev:mixwater",
-	liquid_viscosity = WATER_VISC,
-	liquid_renewable = false,
-	liquid_range = 0,
-	post_effect_color = {a=64, r=100, g=115, b=200},
-	groups = {water=3, liquid=3, puts_out_fire=1, not_in_creative_inventory=1},
-})
 
 -- On generated function
 
@@ -302,6 +124,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_ignore = minetest.get_content_id("ignore")
 	local c_water = minetest.get_content_id("default:water_source")
 	local c_sand = minetest.get_content_id("default:sand")
+	local c_wood = minetest.get_content_id("default:wood")
 
 	local c_dirt = minetest.get_content_id("riverdev:dirt")
 	local c_grass = minetest.get_content_id("riverdev:grass")
@@ -324,6 +147,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local nvals_base = minetest.get_perlin_map(np_base, chulensxz):get2dMap_flat(minposxz)
 	local nvals_patha = minetest.get_perlin_map(np_patha, chulensxz):get2dMap_flat(minposxz)
 	local nvals_pathb = minetest.get_perlin_map(np_pathb, chulensxz):get2dMap_flat(minposxz)
+	local nvals_tree = minetest.get_perlin_map(np_tree, chulensxz):get2dMap_flat(minposxz)
 	
 	local viu = area:index(x0, y0-1, z0)
 	local ungen = data[viu] == c_ignore
@@ -342,7 +166,8 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local si = x - x0 + 2
 			local nodid = data[vi]
 			local nodidu = data[viu]
-			local chunk = (x >= x0 and z >= z0)
+			local chunkxz = x >= x0 and z >= z0
+			local n_tree = math.min(math.max(nvals_tree[nixz], 0), 1)
 
 			local n_patha = nvals_patha[nixz]
 			local n_abspatha = math.abs(n_patha)
@@ -352,7 +177,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local n_abspathb = math.abs(n_pathb)
 			local n_zprepathb = nvals_pathb[(nixz - sidelen - 1)]
 
-			local n_absterrain = math.abs(nvals_terrain[nixyz])
+			local n_terrain = (nvals_terrain[nixyz] + 2) / 2
 			local n_absmid = math.abs(nvals_mid[nixz])
 			local n_absbase = math.abs(nvals_base[nixz])
 			
@@ -360,17 +185,16 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local grad = (YTER - y) / TERSCA
 			local densitybase = n_invbase * BASAMP + grad
 			local densitymid = n_absmid * MIDAMP + densitybase
-			local terexp = 0.5 + n_invbase * 0.5
 			local teramp = n_invbase * TERAMP
-			local density = n_absterrain ^ terexp * teramp * n_absmid * (0.2 + n_abspatha * n_abspathb) + densitymid
+			local density = n_terrain * teramp * n_absmid * (0.1 + n_abspatha * n_abspathb) + densitymid
 			
 			local tstone = TSTONE * (1 + grad)
 			local triver = TRIVER * n_absbase
 			local trsand = TRSAND * n_absbase
-			local tstream = TSTREAM * (1 - n_absmid)
-			local tssand = TSSAND * (1 - n_absmid)
+
+			local wood = densitybase > trsand * 2 and density < 0
 				
-			if chunk and y == y0 - 1 then -- overgeneration, initialise tables
+			if chunkxz and y == y0 - 1 then -- overgeneration, initialise tables
 				under[si] = 0
 				if ungen then -- guess by calculating density
 					if density >= 0 then
@@ -390,37 +214,41 @@ minetest.register_on_generated(function(minp, maxp, seed)
 						stable[si] = 2
 					end
 				end
-			elseif chunk and y >= y0 and y <= y1 then -- chunk generation
+			elseif chunkxz and y >= y0 and y <= y1 then -- chunk generation
 				if density >= tstone then -- stone
 					data[vi] = c_stone
 					stable[si] = stable[si] + 1
 					under[si] = 0
-				elseif density < 0 and under[si] ~= 0 and y > YSAND and densitybase < trsand and densitymid < tssand
+				elseif y > YSAND
+				and ((not wood and density < 0 and under[si] ~= 0)
+				or (wood and densitybase > trsand * 2 and densitybase < trsand * 2 + 0.002))
 				and (((n_patha >= 0 and n_xprepatha < 0) or (n_patha < 0 and n_xprepatha >= 0)) -- patha
-				or ((n_patha >= 0 and n_zprepatha < 0) or (n_patha < 0 and n_zprepatha >= 0))) then
-					for i = -1, 1 do
-					for k = -1, 1 do
-						local vip = area:index(x+i, y-1, z+k)
-						data[vip] = c_path
-					end
-					end
-					stable[si] = 0
-					under[si] = 0
-				elseif density < 0 and under[si] ~= 0 and y > YSAND and densitybase < trsand and densitymid < tssand
-				and (((n_pathb >= 0 and n_xprepathb < 0) or (n_pathb < 0 and n_xprepathb >= 0)) -- pathb
+				or ((n_patha >= 0 and n_zprepatha < 0) or (n_patha < 0 and n_zprepatha >= 0))
+				or ((n_pathb >= 0 and n_xprepathb < 0) or (n_pathb < 0 and n_xprepathb >= 0)) -- pathb
 				or ((n_pathb >= 0 and n_zprepathb < 0) or (n_pathb < 0 and n_zprepathb >= 0))) then
-					for i = -1, 1 do
-					for k = -1, 1 do
-						local vip = area:index(x+i, y-1, z+k)
-						data[vip] = c_path
+					if wood and math.random() < 0.1 then
+						local vi = area:index(x, y-2, z)
+						for j = 1, 16 do
+							data[vi] = c_wood
+							vi = vi - 112
+						end
 					end
+					for k = -1, 1 do
+						local vi = area:index(x-1, y-1, z+k)
+						for i = -1, 1 do
+							if wood then
+								data[vi] = c_wood
+							else
+								data[vi] = c_path
+							end
+							vi = vi + 1
+						end
 					end
 					stable[si] = 0
 					under[si] = 0
 				elseif density >= 0 and density < tstone and stable[si] >= 2 then -- fine materials
 					if y <= YSAND + math.random() * 2
-					or densitybase >= trsand + math.random() * 0.002
-					or densitymid >= tssand + math.random() * 0.002 then
+					or densitybase >= trsand + math.random() * 0.002 then
 						data[vi] = c_sand
 						under[si] = 2
 					else
@@ -439,17 +267,14 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					end
 					stable[si] = 0
 					under[si] = 0
-				elseif densitymid >= tstream then -- stream water
-					if y == YWATER + 1 then
-						data[vi] = c_mixwater
-					else
-						data[vi] = c_freshwater
-					end
-					stable[si] = 0
-					under[si] = 0
 				elseif density < 0 and under[si] ~= 0 then -- air above surface
 					if under[si] == 1 and nodidu ~= c_path then
-						data[viu] = c_grass
+						if math.random() < APPCHA * n_tree
+						and n_abspatha > 0.03 and n_abspathb > 0.03 then
+							riverdev_appletree(x, y, z, area, data)
+						else
+							data[viu] = c_grass
+						end
 					end
 					stable[si] = 0
 					under[si] = 0
@@ -457,9 +282,9 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					stable[si] = 0
 					under[si] = 0
 				end
-			elseif chunk and y == y1 + 1 then -- overgeneration, detect surface, add surface nodes
+			elseif chunkxz and y == y1 + 1 then -- overgeneration, detect surface, add surface nodes
 				if density < 0 and under[si] ~= 0 then
-					if under[si] == 1 then
+					if under[si] == 1 and nodidu ~= c_path then
 						data[viu] = c_grass
 					end
 				end
