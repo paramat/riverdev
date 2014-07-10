@@ -1,4 +1,4 @@
--- riverdev 0.4.1 by paramat
+-- riverdev 0.4.2 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
@@ -8,19 +8,20 @@
 local YMIN = -33000
 local YMAX = 33000
 local YWATER = 1
-local YSAND = 4 -- Top of beach
-local YTER = -64 -- Terrain zero level, average seabed level
+local YSAND = 4 -- Top of beach y
+local YTER = -64 -- Deepest seabed y
 
 local TERSCA = 512 -- Terrain vertical scale in nodes
 local BASAMP = 0.3 -- Base amplitude. Ridge network structure
-local MIDAMP = 0.1 -- Mid amplitude. River valley structure
-local TERAMP = 0.6 -- Primary terrain amplitude. Stream / path valley structure
+local MIDAMP = 0.05 -- Mid amplitude. River valley structure
+local TERAMP = 0.65 -- 3D noise terrain amplitude. Path valley structure
 
 local TSTONE = 0.02
-local TRIVER = -0.02
-local TRSAND = -0.025
+local TRIVER = -0.018
+local TRSAND = -0.02
+local TPFLO = 0.02 -- Width of flora clearing around paths
 
-local APPCHA = 1 / 4 ^ 2 -- Appletree maximum chance per grass node. 1 / n ^ 2 where n = minimum average distance between flora
+local APPCHA = 1 / 4 ^ 2 -- Appletree maximum chance per grass node. 1 / n ^ 2 where n = average minimum distance between flora
 
 -- 3D noise for terrain
 
@@ -33,15 +34,15 @@ local np_terrain = {
 	persist = 0.67
 }
 
--- 2D noise for mid terrain
+-- 2D noise for mid terrain / river
 
 local np_mid = {
 	offset = 0,
 	scale = 1,
-	spread = {x=768, y=768, z=768},
+	spread = {x=512, y=512, z=512},
 	seed = 85546,
 	octaves = 5,
-	persist = 0.5
+	persist = 0.4
 }
 
 -- 2D noise for base terrain
@@ -49,7 +50,7 @@ local np_mid = {
 local np_base = {
 	offset = 0,
 	scale = 1,
-	spread = {x=3072, y=3072, z=3072},
+	spread = {x=2048, y=2048, z=2048},
 	seed = -990054,
 	octaves = 3,
 	persist = 0.4
@@ -60,7 +61,7 @@ local np_base = {
 local np_patha = {
 	offset = 0,
 	scale = 1,
-	spread = {x=384, y=384, z=384},
+	spread = {x=512, y=512, z=512},
 	seed = 7000023,
 	octaves = 3,
 	persist = 0.4
@@ -71,9 +72,9 @@ local np_patha = {
 local np_pathb = {
 	offset = 0,
 	scale = 1,
-	spread = {x=384, y=384, z=384},
+	spread = {x=512, y=512, z=512},
 	seed = 23,
-	octaves = 4,
+	octaves = 3,
 	persist = 0.4
 }
 
@@ -82,10 +83,10 @@ local np_pathb = {
 local np_tree = {
 	offset = 0,
 	scale = 1,
-	spread = {x=192, y=192, z=192},
+	spread = {x=256, y=256, z=256},
 	seed = 133338,
 	octaves = 3,
-	persist = 0.5
+	persist = 0.6
 }
 
 -- Stuff
@@ -178,17 +179,16 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local n_zprepathb = nvals_pathb[(nixz - sidelen - 1)]
 
 			local n_terrain = (nvals_terrain[nixyz] + 2) / 2
-			local n_absmid = math.abs(nvals_mid[nixz])
-			local n_absbase = math.abs(nvals_base[nixz])
+			local n_absmid = (math.abs(nvals_mid[nixz])) ^ 0.8
+			local n_absbase = (math.abs(nvals_base[nixz])) ^ 0.8
 			
 			local n_invbase = (1 - n_absbase)
 			local grad = (YTER - y) / TERSCA
 			local densitybase = n_invbase * BASAMP + grad
 			local densitymid = n_absmid * MIDAMP + densitybase
-			local teramp = n_invbase * TERAMP
-			local density = n_terrain * teramp * n_absmid * (0.1 + n_abspatha * n_abspathb) + densitymid
+			local density = n_terrain * n_invbase * n_absmid * n_abspatha ^ 1.2 * n_abspathb ^ 1.2 * TERAMP + densitymid
 			
-			local tstone = TSTONE * (1 + grad)
+			local tstone = TSTONE * (1 + grad * 2)
 			local triver = TRIVER * n_absbase
 			local trsand = TRSAND * n_absbase
 
@@ -270,7 +270,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				elseif density < 0 and under[si] ~= 0 then -- air above surface
 					if under[si] == 1 and nodidu ~= c_path then
 						if math.random() < APPCHA * n_tree
-						and n_abspatha > 0.03 and n_abspathb > 0.03 then
+						and n_abspatha > TPFLO and n_abspathb > TPFLO then
 							riverdev_appletree(x, y, z, area, data)
 						else
 							data[viu] = c_grass
