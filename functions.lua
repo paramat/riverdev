@@ -82,3 +82,46 @@ minetest.register_abm({
 		vm:update_map()
 	end,
 })
+
+-- Spawn flat facing south
+
+	function riverdev_flatsouth(pos)
+		local x = pos.x
+		local y = pos.y
+		local z = pos.z
+		local c_air = minetest.get_content_id("air")
+		local c_tree = minetest.get_content_id("default:tree")
+
+		local vm = minetest.get_voxel_manip()
+		local pos1 = {x=x-2, y=y-5, z=z-2}
+		local pos2 = {x=x+9, y=y+4, z=z+9}
+		local emin, emax = vm:read_from_map(pos1, pos2)
+		local area = VoxelArea:new({MinEdge=emin, MaxEdge=emax})
+		local data = vm:get_data()
+
+		for j = -5, 4 do
+		for k = -2, 9 do
+			local vi = area:index(x-2, y+j, z+k)
+			for i = -2, 9 do
+				local nodid = data[vi]
+				if nodid == c_tree then
+					data[vi] = c_air
+					--for j = -2, 2 do
+					--for k = -2, 2 do
+					--for i = -2, 2 do
+					--end
+					--end
+					--end
+				end
+				vi = vi + 1
+			end
+		end
+		end
+
+		vm:set_data(data)
+		vm:write_to_map()
+		vm:update_map()
+
+		local path = minetest.get_modpath("riverdev") .. "/schems/flat.mts"
+		minetest.place_schematic({x=x, y=y, z=z}, path, 270, nil, false)
+	end

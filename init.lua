@@ -12,25 +12,25 @@ local YSAND = 4 -- Top of beach y
 local YTER = -64 -- Deepest seabed y
 
 local TERSCA = 512 -- Terrain vertical scale in nodes
-local BASAMP = 0.3 -- Base amplitude. Ridge network structure
-local MIDAMP = 0.05 -- Mid amplitude. River valley structure
-local TERAMP = 0.65 -- 3D noise terrain amplitude. Path valley structure
+local BASAMP = 0.3 -- Base amplitude relative to 3D noise amplitude. Ridge network structure
+local MIDAMP = 0.05 -- Mid amplitude relative to 3D noise amplitude. River valley structure
 
 local TSTONE = 0.02
 local TRIVER = -0.018
 local TRSAND = -0.02
-local TPFLO = 0.02 -- Width of flora clearing around paths
+local TPFLO = 0.03 -- Width of flora clearing around paths
 
 local APPCHA = 1 / 4 ^ 2 -- Appletree maximum chance per grass node. 1 / n ^ 2 where n = average minimum distance between flora
+local GRACHA = 1 / 4 ^ 2 -- Grasses maximum chance per grass node
 
--- 3D noise for terrain
+-- 3D noise for highland terrain
 
 local np_terrain = {
 	offset = 0,
 	scale = 1,
-	spread = {x=384, y=192, z=384},
+	spread = {x=192, y=192, z=192},
 	seed = 5900033,
-	octaves = 5,
+	octaves = 4,
 	persist = 0.67
 }
 
@@ -39,7 +39,7 @@ local np_terrain = {
 local np_mid = {
 	offset = 0,
 	scale = 1,
-	spread = {x=512, y=512, z=512},
+	spread = {x=768, y=768, z=768},
 	seed = 85546,
 	octaves = 5,
 	persist = 0.4
@@ -50,9 +50,9 @@ local np_mid = {
 local np_base = {
 	offset = 0,
 	scale = 1,
-	spread = {x=2048, y=2048, z=2048},
+	spread = {x=3072, y=3072, z=3072},
 	seed = -990054,
-	octaves = 3,
+	octaves = 2,
 	persist = 0.4
 }
 
@@ -61,9 +61,9 @@ local np_base = {
 local np_patha = {
 	offset = 0,
 	scale = 1,
-	spread = {x=512, y=512, z=512},
+	spread = {x=768, y=768, z=768},
 	seed = 7000023,
-	octaves = 3,
+	octaves = 4,
 	persist = 0.4
 }
 
@@ -72,9 +72,9 @@ local np_patha = {
 local np_pathb = {
 	offset = 0,
 	scale = 1,
-	spread = {x=512, y=512, z=512},
+	spread = {x=768, y=768, z=768},
 	seed = 23,
-	octaves = 3,
+	octaves = 4,
 	persist = 0.4
 }
 
@@ -83,10 +83,21 @@ local np_pathb = {
 local np_tree = {
 	offset = 0,
 	scale = 1,
-	spread = {x=256, y=256, z=256},
+	spread = {x=192, y=192, z=192},
 	seed = 133338,
 	octaves = 3,
-	persist = 0.6
+	persist = 0.5
+}
+
+-- 2D noise for grasses
+
+local np_grass = {
+	offset = 0,
+	scale = 1,
+	spread = {x=192, y=192, z=192},
+	seed = 133,
+	octaves = 2,
+	persist = 0.5
 }
 
 -- Stuff
@@ -126,6 +137,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_water = minetest.get_content_id("default:water_source")
 	local c_sand = minetest.get_content_id("default:sand")
 	local c_wood = minetest.get_content_id("default:wood")
+	local c_grass5 = minetest.get_content_id("default:grass_5")
 
 	local c_dirt = minetest.get_content_id("riverdev:dirt")
 	local c_grass = minetest.get_content_id("riverdev:grass")
@@ -149,6 +161,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local nvals_patha = minetest.get_perlin_map(np_patha, chulensxz):get2dMap_flat(minposxz)
 	local nvals_pathb = minetest.get_perlin_map(np_pathb, chulensxz):get2dMap_flat(minposxz)
 	local nvals_tree = minetest.get_perlin_map(np_tree, chulensxz):get2dMap_flat(minposxz)
+	local nvals_grass = minetest.get_perlin_map(np_grass, chulensxz):get2dMap_flat(minposxz)
 	
 	local viu = area:index(x0, y0-1, z0)
 	local ungen = data[viu] == c_ignore
@@ -159,16 +172,17 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local under = {}
 	for z = z0 - 1, z1 do
 	for y = y0 - 1, y1 + 1 do
+		local si = 1
 		local vi = area:index(x0-1, y, z)
 		local viu = area:index(x0-1, y-1, z)
 		local n_xprepatha = false
 		local n_xprepathb = false
 		for x = x0 - 1, x1 do
-			local si = x - x0 + 2
 			local nodid = data[vi]
 			local nodidu = data[viu]
 			local chunkxz = x >= x0 and z >= z0
 			local n_tree = math.min(math.max(nvals_tree[nixz], 0), 1)
+			local n_grass = math.min(math.max(nvals_grass[nixz], 0), 1)
 
 			local n_patha = nvals_patha[nixz]
 			local n_abspatha = math.abs(n_patha)
@@ -186,9 +200,9 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local grad = (YTER - y) / TERSCA
 			local densitybase = n_invbase * BASAMP + grad
 			local densitymid = n_absmid * MIDAMP + densitybase
-			local density = n_terrain * n_invbase * n_absmid * n_abspatha ^ 1.2 * n_abspathb ^ 1.2 * TERAMP + densitymid
+			local density = n_terrain * n_invbase * n_absmid * n_abspatha ^ 1.5 * n_abspathb ^ 1.5 + densitymid
 			
-			local tstone = TSTONE * (1 + grad * 2)
+			local tstone = TSTONE * (1 + grad * 3)
 			local triver = TRIVER * n_absbase
 			local trsand = TRSAND * n_absbase
 
@@ -247,7 +261,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					stable[si] = 0
 					under[si] = 0
 				elseif density >= 0 and density < tstone and stable[si] >= 2 then -- fine materials
-					if y <= YSAND + math.random() * 2
+					if y <= YSAND + math.random(0, 1)
 					or densitybase >= trsand + math.random() * 0.002 then
 						data[vi] = c_sand
 						under[si] = 2
@@ -268,12 +282,16 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					stable[si] = 0
 					under[si] = 0
 				elseif density < 0 and under[si] ~= 0 then -- air above surface
-					if under[si] == 1 and nodidu ~= c_path then
-						if math.random() < APPCHA * n_tree
+					if under[si] == 1 and nodid ~= c_path and nodidu ~= c_path
+					and nodid ~= c_wood and nodidu ~= c_wood then
+						if math.random() < APPCHA * n_tree and tstone > 0.005
 						and n_abspatha > TPFLO and n_abspathb > TPFLO then
 							riverdev_appletree(x, y, z, area, data)
 						else
 							data[viu] = c_grass
+							if math.random() < GRACHA * n_grass then -- grasses
+								data[vi] = c_grass5
+							end
 						end
 					end
 					stable[si] = 0
@@ -282,9 +300,35 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					stable[si] = 0
 					under[si] = 0
 				end
-			elseif chunkxz and y == y1 + 1 then -- overgeneration, detect surface, add surface nodes
-				if density < 0 and under[si] ~= 0 then
-					if under[si] == 1 and nodidu ~= c_path then
+			elseif chunkxz and y == y1 + 1 then -- overgeneration
+				if y > YSAND
+				and ((not wood and density < 0 and under[si] ~= 0)
+				or (wood and densitybase > trsand * 2 and densitybase < trsand * 2 + 0.002))
+				and (((n_patha >= 0 and n_xprepatha < 0) or (n_patha < 0 and n_xprepatha >= 0)) -- patha
+				or ((n_patha >= 0 and n_zprepatha < 0) or (n_patha < 0 and n_zprepatha >= 0))
+				or ((n_pathb >= 0 and n_xprepathb < 0) or (n_pathb < 0 and n_xprepathb >= 0)) -- pathb
+				or ((n_pathb >= 0 and n_zprepathb < 0) or (n_pathb < 0 and n_zprepathb >= 0))) then
+					if wood and math.random() < 0.1 then
+						local vi = area:index(x, y-2, z)
+						for j = 1, 16 do
+							data[vi] = c_wood
+							vi = vi - 112
+						end
+					end
+					for k = -1, 1 do
+						local vi = area:index(x-1, y-1, z+k)
+						for i = -1, 1 do
+							if wood then
+								data[vi] = c_wood
+							else
+								data[vi] = c_path
+							end
+							vi = vi + 1
+						end
+					end
+				elseif density < 0 and under[si] ~= 0 then
+					if under[si] == 1 and nodid ~= c_path and nodidu ~= c_path
+					and nodid ~= c_wood and nodidu ~= c_wood then
 						data[viu] = c_grass
 					end
 				end
@@ -296,6 +340,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			nixz = nixz + 1
 			vi = vi + 1
 			viu = viu + 1
+			si = si + 1
 		end
 		nixz = nixz - sidelen - 1
 	end
