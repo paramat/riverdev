@@ -33,6 +33,53 @@ function riverdev_appletree(x, y, z, area, data)
 	end
 end
 
+function riverdev_pinetree(x, y, z, area, data)
+	local c_pinetree = minetest.get_content_id("riverdev:pinetree")
+	local c_needles = minetest.get_content_id("riverdev:needles")
+	for j = -4, 14 do
+		if j == 3 or j == 6 or j == 9 or j == 12 then
+			for i = -2, 2 do
+			for k = -2, 2 do
+				if math.abs(i) == 2 or math.abs(k) == 2 then
+					if math.random(7) ~= 2 then
+						local vil = area:index(x + i, y + j, z + k)
+						data[vil] = c_needles
+					end
+				end
+			end
+			end
+		elseif j == 4 or j == 7 or j == 10 then
+			for i = -1, 1 do
+			for k = -1, 1 do
+				if not (i == 0 and j == 0) then
+					if math.random(11) ~= 2 then
+						local vil = area:index(x + i, y + j, z + k)
+						data[vil] = c_needles
+					end
+				end
+			end
+			end
+		elseif j == 13 then
+			for i = -1, 1 do
+			for k = -1, 1 do
+				if not (i == 0 and j == 0) then
+					local vil = area:index(x + i, y + j, z + k)
+					data[vil] = c_needles
+					local vila = area:index(x + i, y + j + 1, z + k)
+					data[vila] = c_needles
+				end
+			end
+			end
+		end
+		local vit = area:index(x, y + j, z)
+		data[vit] = c_pinetree
+	end
+	local vil = area:index(x, y + 15, z)
+	local vila = area:index(x, y + 16, z)
+	data[vil] = c_needles
+	data[vila] = c_needles
+end
+
 function riverdev_flower(data, vi)
 	local c_danwhi = minetest.get_content_id("flowers:dandelion_white")
 	local c_danyel = minetest.get_content_id("flowers:dandelion_yellow")
@@ -76,6 +123,31 @@ minetest.register_abm({
 		local data = vm:get_data()
 
 		riverdev_appletree(x, y, z, area, data)
+
+		vm:set_data(data)
+		vm:write_to_map()
+		vm:update_map()
+	end,
+})
+
+-- Pinetree sapling
+
+minetest.register_abm({
+	nodenames = {"riverdev:pineling"},
+	interval = 29,
+	chance = 5,
+	action = function(pos, node)
+		local x = pos.x
+		local y = pos.y
+		local z = pos.z
+		local vm = minetest.get_voxel_manip()
+		local pos1 = {x=x-2, y=y-4, z=z-2}
+		local pos2 = {x=x+2, y=y+16, z=z+2}
+		local emin, emax = vm:read_from_map(pos1, pos2)
+		local area = VoxelArea:new({MinEdge=emin, MaxEdge=emax})
+		local data = vm:get_data()
+
+		riverdev_pinetree(x, y, z, area, data)
 
 		vm:set_data(data)
 		vm:write_to_map()

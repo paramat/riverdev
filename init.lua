@@ -3,6 +3,11 @@
 -- Depends default
 -- License: code WTFPL
 
+-- Pines, pine sapling. pine wood, slabs, stairs. Bucket fresh water
+-- TODO
+-- autumn forest, red/orange/yellow leaves, falling leaf particls, also on ground around tree
+-- cubeworld style boulders
+
 -- Parameters
 
 local YMIN = -33000
@@ -20,7 +25,8 @@ local TRIVER = -0.018
 local TRSAND = -0.02
 local TPFLO = 0.03 -- Width of flora clearing around paths
 
-local APPCHA = 1 / 4 ^ 2 -- Appletree maximum chance per grass node. 1 / n ^ 2 where n = average minimum distance between flora
+local APPCHA = 1 / 5 ^ 2 -- Appletree maximum chance per grass node. 1 / n ^ 2 where n = average minimum distance between flora
+local PINCHA = 1 / 6 ^ 2 -- Pinetree maximum chance per grass node
 local GRACHA = 1 / 4 ^ 2 -- Grasses maximum chance per grass node
 
 -- 3D noise for highland terrain
@@ -202,7 +208,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local densitymid = n_absmid * MIDAMP + densitybase
 			local density = n_terrain * n_invbase * n_absmid * n_abspatha ^ 1.5 * n_abspathb ^ 1.5 + densitymid
 			
-			local tstone = TSTONE * (1 + grad * 3)
+			local tstone = TSTONE * (1 + grad * 2)
 			local triver = TRIVER * n_absbase
 			local trsand = TRSAND * n_absbase
 
@@ -286,7 +292,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					and nodid ~= c_wood and nodidu ~= c_wood then
 						if math.random() < APPCHA * n_tree and tstone > 0.005
 						and n_abspatha > TPFLO and n_abspathb > TPFLO then
-							riverdev_appletree(x, y, z, area, data)
+							riverdev_pinetree(x, y, z, area, data)
 						else
 							data[viu] = c_grass
 							if math.random() < GRACHA * n_grass then -- grasses

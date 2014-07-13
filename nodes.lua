@@ -70,6 +70,59 @@ minetest.register_node("riverdev:appling", {
 	sounds = default.node_sound_leaves_defaults(),
 })
 
+minetest.register_node("riverdev:pinetree", {
+	description = "Pine tree",
+	tiles = {"riverdev_pinetreetop.png", "riverdev_pinetreetop.png", "riverdev_pinetree.png"},
+	paramtype2 = "facedir",
+	is_ground_content = false,
+	groups = {tree=1,choppy=2,oddly_breakable_by_hand=1,flammable=2},
+	sounds = default.node_sound_wood_defaults(),
+	on_place = minetest.rotate_node
+})
+
+minetest.register_node("riverdev:needles", {
+	description = "Pine needles",
+	drawtype = "allfaces_optional",
+	visual_scale = 1.3,
+	tiles = {"riverdev_needles.png"},
+	paramtype = "light",
+	is_ground_content = false,
+	groups = {snappy=3},
+	drop = {
+		max_items = 1,
+		items = {
+			{items = {"rivedev:pineling"},rarity = 20},
+			{items = {"riverdev:needles"}}
+		}
+	},
+	sounds = default.node_sound_leaves_defaults(),
+})
+
+minetest.register_node("riverdev:pineling", {
+	description = "Pine sapling",
+	drawtype = "plantlike",
+	visual_scale = 1.0,
+	tiles = {"riverdev_pineling.png"},
+	inventory_image = "riverdev_pineling.png",
+	wield_image = "riverdev_pineling.png",
+	paramtype = "light",
+	walkable = false,
+	is_ground_content = false,
+	selection_box = {
+		type = "fixed",
+		fixed = {-0.3, -0.5, -0.3, 0.3, 0.35, 0.3}
+	},
+	groups = {snappy=2,dig_immediate=3,flammable=2,attached_node=1},
+	sounds = default.node_sound_leaves_defaults(),
+})
+
+minetest.register_node("riverdev:pinewood", {
+	description = "Pine wood planks",
+	tiles = {"riverdev_pinewood.png"},
+	groups = {choppy=2,oddly_breakable_by_hand=2,flammable=3,wood=1},
+	sounds = default.node_sound_wood_defaults(),
+})
+
 minetest.register_node("riverdev:freshwater", {
 	description = "Fresh Water Source",
 	inventory_image = minetest.inventorycube("riverdev_freshwater.png"),
@@ -220,3 +273,30 @@ minetest.register_node("riverdev:mixwaterflow", {
 	groups = {water=3, liquid=3, puts_out_fire=1, not_in_creative_inventory=1},
 })
 
+-- Crafting
+
+minetest.register_craft({
+	output = "riverdev:pinewood 4",
+	recipe = {
+		{"riverdev:pinetree"},
+	}
+})
+
+-- Register stairs and slabs
+
+stairs.register_stair_and_slab("pinewood", "riverdev:pinewood",
+		{snappy=2,choppy=2,oddly_breakable_by_hand=2,flammable=3},
+		{"riverdev_pinewood.png"},
+		"Pinewood stair",
+		"Pinewood slab",
+		default.node_sound_wood_defaults())
+
+-- Buckets
+
+bucket.register_liquid(
+	"riverdev:freshwater",
+	"riverdev:freshwaterflow",
+	"riverdev:bucket_freshwater",
+	"riverdev_bucketfreshwater.png",
+	"Fresh Water Bucket"
+)
