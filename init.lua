@@ -1,12 +1,7 @@
--- riverdev 0.4.2 by paramat
+-- riverdev 0.4.3 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
-
--- Pines, pine sapling. pine wood, slabs, stairs. Bucket fresh water
--- TODO
--- autumn forest, red/orange/yellow leaves, falling leaf particls, also on ground around tree
--- cubeworld style boulders
 
 -- Parameters
 
@@ -24,10 +19,13 @@ local TSTONE = 0.02
 local TRIVER = -0.018
 local TRSAND = -0.02
 local TPFLO = 0.03 -- Width of flora clearing around paths
+local TTUN = 0.02 -- Tunnel width
 
+local ORECHA = 1 / 5 ^ 3 -- Ore chance per stone node. 1 / n ^ 3 where n = average distance between ores
 local APPCHA = 1 / 5 ^ 2 -- Appletree maximum chance per grass node. 1 / n ^ 2 where n = average minimum distance between flora
 local PINCHA = 1 / 6 ^ 2 -- Pinetree maximum chance per grass node
-local GRACHA = 1 / 4 ^ 2 -- Grasses maximum chance per grass node
+local GRACHA = 1 / 5 ^ 2 -- Grasses maximum chance per grass node
+local FLOCHA = 1 / 41 ^ 2 -- Flower chance per grass node
 
 -- 3D noise for highland terrain
 
@@ -106,6 +104,26 @@ local np_grass = {
 	persist = 0.5
 }
 
+-- 3D noises for tunnels
+
+local np_weba = {
+	offset = 0,
+	scale = 1,
+	spread = {x=192, y=192, z=192},
+	seed = 5900033,
+	octaves = 3,
+	persist = 0.5
+}
+
+local np_webb = {
+	offset = 0,
+	scale = 1,
+	spread = {x=191, y=191, z=191},
+	seed = 33,
+	octaves = 3,
+	persist = 0.5
+}
+
 -- Stuff
 
 riverdev = {}
@@ -144,6 +162,12 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_sand = minetest.get_content_id("default:sand")
 	local c_wood = minetest.get_content_id("default:wood")
 	local c_grass5 = minetest.get_content_id("default:grass_5")
+	local c_stodiam = minetest.get_content_id("default:stone_with_diamond")
+	local c_stomese = minetest.get_content_id("default:stone_with_mese")
+	local c_stogold = minetest.get_content_id("default:stone_with_gold")
+	local c_stocopp = minetest.get_content_id("default:stone_with_copper")
+	local c_stoiron = minetest.get_content_id("default:stone_with_iron")
+	local c_stocoal = minetest.get_content_id("default:stone_with_coal")
 
 	local c_dirt = minetest.get_content_id("riverdev:dirt")
 	local c_grass = minetest.get_content_id("riverdev:grass")
@@ -161,6 +185,8 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local minposxz = {x=x0-1, y=z0-1}
 	
 	local nvals_terrain = minetest.get_perlin_map(np_terrain, chulensxyz):get3dMap_flat(minposxyz)
+	local nvals_weba = minetest.get_perlin_map(np_weba, chulensxyz):get3dMap_flat(minposxyz)
+	local nvals_webb = minetest.get_perlin_map(np_webb, chulensxyz):get3dMap_flat(minposxyz)
 
 	local nvals_mid = minetest.get_perlin_map(np_mid, chulensxz):get2dMap_flat(minposxz)
 	local nvals_base = minetest.get_perlin_map(np_base, chulensxz):get2dMap_flat(minposxz)
@@ -212,12 +238,16 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local triver = TRIVER * n_absbase
 			local trsand = TRSAND * n_absbase
 
+			local weba = math.abs(nvals_weba[nixyz]) < TTUN
+			local webb = math.abs(nvals_webb[nixyz]) < TTUN
+			local novoid = not (weba and webb)
+
 			local wood = densitybase > trsand * 2 and density < 0
 				
 			if chunkxz and y == y0 - 1 then -- overgeneration, initialise tables
 				under[si] = 0
 				if ungen then -- guess by calculating density
-					if density >= 0 then
+					if density >= 0 and novoid then
 						stable[si] = 2
 					else
 						stable[si] = 0
@@ -235,8 +265,28 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					end
 				end
 			elseif chunkxz and y >= y0 and y <= y1 then -- chunk generation
-				if density >= tstone then -- stone
-					data[vi] = c_stone
+				if density >= tstone
+				and (novoid
+				or (density < tstone * 1.5
+				and (y <= YWATER or densitybase >= triver))) then
+					if math.random() < ORECHA and density > TSTONE then -- ores
+						local osel = math.random(24)
+						if osel == 24 then
+							data[vi] = c_stodiam
+						elseif osel == 23 then
+							data[vi] = c_stomese
+						elseif osel == 22 then
+							data[vi] = c_stogold
+						elseif osel >= 19 then
+							data[vi] = c_stocopp
+						elseif osel >= 10 then
+							data[vi] = c_stoiron
+						else
+							data[vi] = c_stocoal
+						end
+					else
+						data[vi] = c_stone -- stone
+					end
 					stable[si] = stable[si] + 1
 					under[si] = 0
 				elseif y > YSAND
@@ -279,7 +329,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					data[vi] = c_water
 					stable[si] = 0
 					under[si] = 0
-				elseif densitybase >= triver then -- river water
+				elseif densitybase >= triver and density < 0 then -- river water
 					if y == YWATER + 1 then
 						data[vi] = c_mixwater
 					else
@@ -290,19 +340,24 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				elseif density < 0 and under[si] ~= 0 then -- air above surface
 					if under[si] == 1 and nodid ~= c_path and nodidu ~= c_path
 					and nodid ~= c_wood and nodidu ~= c_wood then
-						if math.random() < APPCHA * n_tree and tstone > 0.005
+						if math.random() < APPCHA * n_tree and tstone > 0.012
+						and n_abspatha > TPFLO and n_abspathb > TPFLO then
+							riverdev_appletree(x, y, z, area, data)
+						elseif math.random() < PINCHA * n_tree and tstone > 0.004 and tstone < 0.012
 						and n_abspatha > TPFLO and n_abspathb > TPFLO then
 							riverdev_pinetree(x, y, z, area, data)
 						else
 							data[viu] = c_grass
-							if math.random() < GRACHA * n_grass then -- grasses
+							if math.random() < FLOCHA then
+								riverdev_flower(data, vi)
+							elseif math.random() < GRACHA * n_grass then -- grasses
 								data[vi] = c_grass5
 							end
 						end
 					end
 					stable[si] = 0
 					under[si] = 0
-				else -- air
+				else -- air or tunnel
 					stable[si] = 0
 					under[si] = 0
 				end
