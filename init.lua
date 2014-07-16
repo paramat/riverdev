@@ -1,7 +1,11 @@
--- riverdev 0.4.3 by paramat
+-- riverdev 0.4.4 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
+
+-- mod nodes drop default dirt for farming
+-- trees now have vi = vi + 1 optimisation
+-- emerlen used for vertical columns
 
 -- Parameters
 
@@ -10,6 +14,7 @@ local YMAX = 33000
 local YWATER = 1
 local YSAND = 4 -- Top of beach y
 local YTER = -64 -- Deepest seabed y
+local YPINE = 32 -- Pines above this y
 
 local TERSCA = 512 -- Terrain vertical scale in nodes
 local BASAMP = 0.3 -- Base amplitude relative to 3D noise amplitude. Ridge network structure
@@ -179,6 +184,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_mixwaterflow = minetest.get_content_id("riverdev:mixwaterflow")
 	
 	local sidelen = x1 - x0 + 1 -- chunk sidelen
+	local emerlen = sidelen + 32 -- voxelmanip emerged area sidelen
 	local chulensxyz = {x=sidelen+1, y=sidelen+2, z=sidelen+1}
 	local minposxyz = {x=x0-1, y=y0-1, z=z0-1}
 	local chulensxz = {x=sidelen+1, y=sidelen+1, z=sidelen} -- different because here x=x, y=z
@@ -300,7 +306,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 						local vi = area:index(x, y-2, z)
 						for j = 1, 16 do
 							data[vi] = c_wood
-							vi = vi - 112
+							vi = vi - emerlen
 						end
 					end
 					for k = -1, 1 do
@@ -340,10 +346,10 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				elseif density < 0 and under[si] ~= 0 then -- air above surface
 					if under[si] == 1 and nodid ~= c_path and nodidu ~= c_path
 					and nodid ~= c_wood and nodidu ~= c_wood then
-						if math.random() < APPCHA * n_tree and tstone > 0.012
+						if math.random() < APPCHA * n_tree and y < YPINE
 						and n_abspatha > TPFLO and n_abspathb > TPFLO then
 							riverdev_appletree(x, y, z, area, data)
-						elseif math.random() < PINCHA * n_tree and tstone > 0.004 and tstone < 0.012
+						elseif math.random() < PINCHA * n_tree and y >= YPINE
 						and n_abspatha > TPFLO and n_abspathb > TPFLO then
 							riverdev_pinetree(x, y, z, area, data)
 						else
@@ -415,3 +421,4 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local chugent = math.ceil((os.clock() - t1) * 1000)
 	print ("[riverdev] "..chugent.." ms")
 end)
+
