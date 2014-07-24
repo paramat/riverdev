@@ -1,11 +1,12 @@
--- riverdev 0.4.4 by paramat
+-- riverdev 0.4.5 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
 
--- mod nodes drop default dirt for farming
--- trees now have vi = vi + 1 optimisation
--- emerlen used for vertical columns
+-- overlen variable
+-- remove autumn trees
+-- remove freshwater bucket
+-- remove unused schem folder
 
 -- Parameters
 
@@ -184,10 +185,11 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_mixwaterflow = minetest.get_content_id("riverdev:mixwaterflow")
 	
 	local sidelen = x1 - x0 + 1 -- chunk sidelen
+	local overlen = sidelen + 1 -- overgeneration sidelen
 	local emerlen = sidelen + 32 -- voxelmanip emerged area sidelen
-	local chulensxyz = {x=sidelen+1, y=sidelen+2, z=sidelen+1}
+	local chulensxyz = {x=overlen, y=sidelen+2, z=overlen}
 	local minposxyz = {x=x0-1, y=y0-1, z=z0-1}
-	local chulensxz = {x=sidelen+1, y=sidelen+1, z=sidelen} -- different because here x=x, y=z
+	local chulensxz = {x=overlen, y=overlen, z=sidelen} -- different because here x=x, y=z
 	local minposxz = {x=x0-1, y=z0-1}
 	
 	local nvals_terrain = minetest.get_perlin_map(np_terrain, chulensxyz):get3dMap_flat(minposxyz)
@@ -224,11 +226,11 @@ minetest.register_on_generated(function(minp, maxp, seed)
 
 			local n_patha = nvals_patha[nixz]
 			local n_abspatha = math.abs(n_patha)
-			local n_zprepatha = nvals_patha[(nixz - sidelen - 1)]
+			local n_zprepatha = nvals_patha[(nixz - overlen)]
 
 			local n_pathb = nvals_pathb[nixz]
 			local n_abspathb = math.abs(n_pathb)
-			local n_zprepathb = nvals_pathb[(nixz - sidelen - 1)]
+			local n_zprepathb = nvals_pathb[(nixz - overlen)]
 
 			local n_terrain = (nvals_terrain[nixyz] + 2) / 2
 			local n_absmid = (math.abs(nvals_mid[nixz])) ^ 0.8
@@ -379,7 +381,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 						local vi = area:index(x, y-2, z)
 						for j = 1, 16 do
 							data[vi] = c_wood
-							vi = vi - 112
+							vi = vi - emerlen
 						end
 					end
 					for k = -1, 1 do
@@ -409,9 +411,9 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			viu = viu + 1
 			si = si + 1
 		end
-		nixz = nixz - sidelen - 1
+		nixz = nixz - overlen
 	end
-	nixz = nixz + sidelen + 1
+	nixz = nixz + overlen
 	end
 	
 	vm:set_data(data)

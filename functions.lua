@@ -36,41 +36,6 @@ function riverdev_appletree(x, y, z, area, data)
 	end
 end
 
-function riverdev_autumntree(x, y, z, area, data)
-	local c_tree = minetest.get_content_id("default:tree")
-	local c_yellowleaf = minetest.get_content_id("riverdev:yellowleaf")
-	local c_yellowleafinit = minetest.get_content_id("riverdev:yellowleafinit")
-	local top = 3 + math.random(2)
-	for j = -2, top do
-		if j == top - 1 or j == top then
-			for k = -2, 2 do
-				local vi = area:index(x - 2, y + j, z + k)
-				for i = -2, 2 do
-					if math.random() < 0.6 then
-						data[vi] = c_yellowleaf
-					end
-					vi = vi + 1
-				end
-			end
-		elseif j == top - 2 then
-			for k = -1, 1 do
-				local vi = area:index(x - 1, y + j, z + k)
-				for i = -1, 1 do
-					if math.abs(i) + math.abs(k) == 2 then
-						data[vi] = c_tree
-					end
-					vi = vi + 1
-				end
-			end
-		else
-			local vi = area:index(x, y + j, z)
-			data[vi] = c_tree
-		end
-	end
-	local vi = area:index(x, y + top, z)
-	data[vi] = c_yellowleafinit
-end
-
 function riverdev_pinetree(x, y, z, area, data)
 	local c_pinetree = minetest.get_content_id("riverdev:pinetree")
 	local c_needles = minetest.get_content_id("riverdev:needles")
@@ -186,41 +151,6 @@ minetest.register_abm({
 		local data = vm:get_data()
 
 		riverdev_pinetree(x, y, z, area, data)
-
-		vm:set_data(data)
-		vm:write_to_map()
-		vm:update_map()
-	end,
-})
-
--- Spawn yellow leaves on ground
-
-minetest.register_abm({
-	nodenames = {"riverdev:yellowleafinit"},
-	interval = 13,
-	chance = 1,
-	action = function(pos, node)
-		local x = pos.x
-		local y = pos.y
-		local z = pos.z
-		local c_yellowleaf = minetest.get_content_id("riverdev:yellowleaf")
-		local c_grass = minetest.get_content_id("riverdev:grass")
-		local c_yellowleafgrass = minetest.get_content_id("riverdev:yellowleafgrass")
-
-		local vm = minetest.get_voxel_manip()
-		local pos1 = {x=x-3, y=y-12, z=z-3}
-		local pos2 = {x=x+3, y=y, z=z+3}
-		local emin, emax = vm:read_from_map(pos1, pos2)
-		local area = VoxelArea:new({MinEdge=emin, MaxEdge=emax})
-		local data = vm:get_data()
-
-		local vi = area:index(x, y, z)
-		data[vi] = c_yellowleaf
-		for vi in area:iterp(pos1, pos2) do
-			if data[vi] == c_grass then
-				data[vi] = c_yellowleafgrass
-			end
-		end
 
 		vm:set_data(data)
 		vm:write_to_map()

@@ -27,39 +27,6 @@ minetest.register_node("riverdev:grass", {
 	}),
 })
 
-minetest.register_node("riverdev:yellowleafgrass", {
-	description = "Grass With Yellow Leaves",
-	tiles = {"default_grass.png^riverdev_yellowleaf.png", "default_dirt.png", "default_grass.png"},
-	is_ground_content = false,
-	groups = {crumbly=3},
-	drop = "default:dirt",
-	sounds = default.node_sound_dirt_defaults({
-		footstep = {name="default_grass_footstep", gain=0.25},
-	}),
-})
-
-minetest.register_node("riverdev:orangeleafgrass", {
-	description = "Grass With Orange Leaves",
-	tiles = {"default_grass.png^riverdev_orangeleaf.png", "default_dirt.png", "default_grass.png"},
-	is_ground_content = false,
-	groups = {crumbly=3},
-	drop = "default:dirt",
-	sounds = default.node_sound_dirt_defaults({
-		footstep = {name="default_grass_footstep", gain=0.25},
-	}),
-})
-
-minetest.register_node("riverdev:redleafgrass", {
-	description = "Grass With Red Leaves",
-	tiles = {"default_grass.png^riverdev_redleaf.png", "default_dirt.png", "default_grass.png"},
-	is_ground_content = false,
-	groups = {crumbly=3},
-	drop = "default:dirt",
-	sounds = default.node_sound_dirt_defaults({
-		footstep = {name="default_grass_footstep", gain=0.25},
-	}),
-})
-
 minetest.register_node("riverdev:path", {
 	description = "Dirt Path",
 	tiles = {"riverdev_path.png"},
@@ -84,78 +51,6 @@ minetest.register_node("riverdev:appleleaf", {
 			{items = {"riverdev:appleleaf"}}
 		}
 	},
-	sounds = default.node_sound_leaves_defaults(),
-})
-
-minetest.register_node("riverdev:yellowleaf", {
-	description = "Yellow Leaves",
-	drawtype = "allfaces_optional",
-	visual_scale = 1.3,
-	tiles = {"riverdev_yellowleaf.png"},
-	paramtype = "light",
-	is_ground_content = false,
-	groups = {snappy=3, flammable=2},
-	drop = "",
-	sounds = default.node_sound_leaves_defaults(),
-})
-
-minetest.register_node("riverdev:yellowleafinit", {
-	description = "Initial Yellow Leaves",
-	drawtype = "allfaces_optional",
-	visual_scale = 1.3,
-	tiles = {"riverdev_yellowleaf.png"},
-	paramtype = "light",
-	is_ground_content = false,
-	groups = {snappy=3, flammable=2},
-	drop = "",
-	sounds = default.node_sound_leaves_defaults(),
-})
-
-minetest.register_node("riverdev:orangeleaf", {
-	description = "Orange Leaves",
-	drawtype = "allfaces_optional",
-	visual_scale = 1.3,
-	tiles = {"riverdev_orangeleaf.png"},
-	paramtype = "light",
-	is_ground_content = false,
-	groups = {snappy=3, flammable=2},
-	drop = "",
-	sounds = default.node_sound_leaves_defaults(),
-})
-
-minetest.register_node("riverdev:orangeleafinit", {
-	description = "Initial Orange Leaves",
-	drawtype = "allfaces_optional",
-	visual_scale = 1.3,
-	tiles = {"riverdev_orangeleaf.png"},
-	paramtype = "light",
-	is_ground_content = false,
-	groups = {snappy=3, flammable=2},
-	drop = "",
-	sounds = default.node_sound_leaves_defaults(),
-})
-
-minetest.register_node("riverdev:redleaf", {
-	description = "Red Leaves",
-	drawtype = "allfaces_optional",
-	visual_scale = 1.3,
-	tiles = {"riverdev_redleaf.png"},
-	paramtype = "light",
-	is_ground_content = false,
-	groups = {snappy=3, flammable=2},
-	drop = "",
-	sounds = default.node_sound_leaves_defaults(),
-})
-
-minetest.register_node("riverdev:redleafinit", {
-	description = "Initial Red Leaves",
-	drawtype = "allfaces_optional",
-	visual_scale = 1.3,
-	tiles = {"riverdev_redleaf.png"},
-	paramtype = "light",
-	is_ground_content = false,
-	groups = {snappy=3, flammable=2},
-	drop = "",
 	sounds = default.node_sound_leaves_defaults(),
 })
 
@@ -391,19 +286,13 @@ minetest.register_craft({
 
 -- Register stairs and slabs
 
-stairs.register_stair_and_slab("pinewood", "riverdev:pinewood",
-		{snappy=2,choppy=2,oddly_breakable_by_hand=2,flammable=3},
-		{"riverdev_pinewood.png"},
-		"Pinewood stair",
-		"Pinewood slab",
-		default.node_sound_wood_defaults())
-
--- Buckets
-
-bucket.register_liquid(
-	"riverdev:freshwater",
-	"riverdev:freshwaterflow",
-	"riverdev:bucket_freshwater",
-	"riverdev_bucketfreshwater.png",
-	"Fresh Water Bucket"
+stairs.register_stair_and_slab(
+	"pinewood",
+	"riverdev:pinewood",
+	{snappy=2,choppy=2,oddly_breakable_by_hand=2,flammable=3},
+	{"riverdev_pinewood.png"},
+	"Pinewood stair",
+	"Pinewood slab",
+	default.node_sound_wood_defaults()
 )
+
