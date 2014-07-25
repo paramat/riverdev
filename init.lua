@@ -1,12 +1,9 @@
--- riverdev 0.4.5 by paramat
+-- riverdev 0.4.6 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
 
--- overlen variable
--- remove autumn trees
--- remove freshwater bucket
--- remove unused schem folder
+-- spawnplayer function
 
 -- Parameters
 
@@ -137,10 +134,6 @@ riverdev = {}
 dofile(minetest.get_modpath("riverdev").."/functions.lua")
 dofile(minetest.get_modpath("riverdev").."/nodes.lua")
 
-minetest.register_on_mapgen_init(function(mgparams)
-	minetest.set_mapgen_params({mgname="singlenode"})
-end)
-
 -- On generated function
 
 minetest.register_on_generated(function(minp, maxp, seed)
@@ -184,9 +177,10 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_freshwaterflow = minetest.get_content_id("riverdev:freshwaterflow")
 	local c_mixwaterflow = minetest.get_content_id("riverdev:mixwaterflow")
 	
-	local sidelen = x1 - x0 + 1 -- chunk sidelen
-	local overlen = sidelen + 1 -- overgeneration sidelen
-	local emerlen = sidelen + 32 -- voxelmanip emerged area sidelen
+	local sidelen = x1 - x0 + 1 -- mapgen chunk side length
+	local overlen = sidelen + 1 -- perlinmap overgeneration horizontal side length
+	local emerlen = sidelen + 32 -- voxelmanip emerged volume edge length
+	--local emerarea = emerlen ^ 2 -- voxelmanip emerged volume face area
 	local chulensxyz = {x=overlen, y=sidelen+2, z=overlen}
 	local minposxyz = {x=x0-1, y=y0-1, z=z0-1}
 	local chulensxz = {x=overlen, y=overlen, z=sidelen} -- different because here x=x, y=z
