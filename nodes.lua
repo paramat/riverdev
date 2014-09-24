@@ -125,6 +125,55 @@ minetest.register_node("riverdev:pinewood", {
 	sounds = default.node_sound_wood_defaults(),
 })
 
+minetest.register_node("riverdev:jungleleaf", {
+	description = "Jungletree leaves",
+	drawtype = "allfaces_optional",
+	visual_scale = 1.3,
+	tiles = {"default_jungleleaves.png"},
+	paramtype = "light",
+	is_ground_content = false,
+	groups = {snappy=3, flammable=2, leaves=1},
+	drop = {
+		max_items = 1,
+		items = {
+			{items = {"riverdev:jungling"},rarity = 20},
+			{items = {"riverdev:jungleleaf"}}
+		}
+	},
+	sounds = default.node_sound_leaves_defaults(),
+})
+
+minetest.register_node("riverdev:vine", {
+	description = "Jungletree vine",
+	drawtype = "airlike",
+	paramtype = "light",
+	walkable = false,
+	climbable = true,
+	pointable = false,
+	diggable = false,
+	buildable_to = true,
+	is_ground_content = false,
+	groups = {not_in_creative_inventory=1},
+})
+
+minetest.register_node("riverdev:jungling", {
+	description = "Jungletree sapling",
+	drawtype = "plantlike",
+	visual_scale = 1.0,
+	tiles = {"default_junglesapling.png"},
+	inventory_image = "default_junglesapling.png",
+	wield_image = "default_junglesapling.png",
+	paramtype = "light",
+	walkable = false,
+	is_ground_content = false,
+	selection_box = {
+		type = "fixed",
+		fixed = {-0.3, -0.5, -0.3, 0.3, 0.35, 0.3}
+	},
+	groups = {snappy=2,dig_immediate=3,flammable=2,attached_node=1},
+	sounds = default.node_sound_leaves_defaults(),
+})
+
 minetest.register_node("riverdev:freshwater", {
 	description = "Fresh Water Source",
 	inventory_image = minetest.inventorycube("riverdev_freshwater.png"),
@@ -158,7 +207,7 @@ minetest.register_node("riverdev:freshwater", {
 	liquid_alternative_source = "riverdev:freshwater",
 	liquid_viscosity = WATER_VISC,
 	liquid_renewable = false,
-	liquid_range = 0,
+	liquid_range = 2,
 	post_effect_color = {a=64, r=100, g=150, b=200},
 	groups = {water=3, liquid=3, puts_out_fire=1},
 })
@@ -195,7 +244,7 @@ minetest.register_node("riverdev:freshwaterflow", {
 	liquid_alternative_source = "riverdev:freshwater",
 	liquid_viscosity = WATER_VISC,
 	liquid_renewable = false,
-	liquid_range = 0,
+	liquid_range = 2,
 	post_effect_color = {a=64, r=100, g=130, b=200},
 	groups = {water=3, liquid=3, puts_out_fire=1, not_in_creative_inventory=1},
 })
@@ -233,7 +282,7 @@ minetest.register_node("riverdev:mixwater", {
 	liquid_alternative_source = "riverdev:mixwater",
 	liquid_viscosity = WATER_VISC,
 	liquid_renewable = false,
-	liquid_range = 0,
+	liquid_range = 2,
 	post_effect_color = {a=64, r=100, g=115, b=200},
 	groups = {water=3, liquid=3, puts_out_fire=1},
 })
@@ -270,7 +319,7 @@ minetest.register_node("riverdev:mixwaterflow", {
 	liquid_alternative_source = "riverdev:mixwater",
 	liquid_viscosity = WATER_VISC,
 	liquid_renewable = false,
-	liquid_range = 0,
+	liquid_range = 2,
 	post_effect_color = {a=64, r=100, g=115, b=200},
 	groups = {water=3, liquid=3, puts_out_fire=1, not_in_creative_inventory=1},
 })

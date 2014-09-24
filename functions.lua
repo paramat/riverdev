@@ -44,13 +44,16 @@ function riverdev_pinetree(x, y, z, area, data)
 			for k = -2, 2 do
 				local vi = area:index(x - 2, y + j, z + k)
 				for i = -2, 2 do
-					if math.abs(i) == 2 or math.abs(k) == 2 then
+					if math.abs(i) == 1 and math.abs(k) == 1 then
+						data[vi] = c_pinetree
+					elseif math.abs(i) + math.abs(k) == 2
+					or math.abs(i) + math.abs(k) == 3 then
 						data[vi] = c_needles
 					end
 					vi = vi + 1
 				end
 			end
-		elseif j == 4 or j == 7 or j == 10 then
+		elseif j == 4 or j == 7 or j == 10 or j == 13 then
 			for k = -1, 1 do
 				local vi = area:index(x - 1, y + j, z + k)
 				for i = -1, 1 do
@@ -60,17 +63,14 @@ function riverdev_pinetree(x, y, z, area, data)
 					vi = vi + 1
 				end
 			end
-		elseif j == 13 then
+		elseif j == 14 then
 			for k = -1, 1 do
 				local vi = area:index(x - 1, y + j, z + k)
-				local via = area:index(x - 1, y + j + 1, z + k)
 				for i = -1, 1 do
-					if not (i == 0 and j == 0) then
+					if math.abs(i) + math.abs(k) == 1 then
 						data[vi] = c_needles
-						data[via] = c_needles
 					end
 					vi = vi + 1
-					via = via + 1
 				end
 			end
 		end
@@ -81,6 +81,105 @@ function riverdev_pinetree(x, y, z, area, data)
 	local via = area:index(x, y + 16, z)
 	data[vi] = c_needles
 	data[via] = c_needles
+end
+
+function riverdev_snowypine(x, y, z, area, data)
+	local c_pinetree = minetest.get_content_id("riverdev:pinetree")
+	local c_needles = minetest.get_content_id("riverdev:needles")
+	local c_snowblock = minetest.get_content_id("default:snowblock")
+	for j = -4, 14 do
+		if j == 3 or j == 6 or j == 9 or j == 12 then
+			for i = -2, 2 do
+			for k = -2, 2 do
+				if math.abs(i) == 2 or math.abs(k) == 2 then
+					if math.random(7) ~= 2 then
+						local vil = area:index(x + i, y + j, z + k)
+						data[vil] = c_needles
+						local vila = area:index(x + i, y + j + 1, z + k)
+						data[vila] = c_snowblock
+					end
+				end
+			end
+			end
+		elseif j == 4 or j == 7 or j == 10 then
+			for i = -1, 1 do
+			for k = -1, 1 do
+				if not (i == 0 and j == 0) then
+					if math.random(11) ~= 2 then
+						local vil = area:index(x + i, y + j, z + k)
+						data[vil] = c_needles
+						local vila = area:index(x + i, y + j + 1, z + k)
+						data[vila] = c_snowblock
+					end
+				end
+			end
+			end
+		elseif j == 13 then
+			for i = -1, 1 do
+			for k = -1, 1 do
+				if not (i == 0 and j == 0) then
+					local vil = area:index(x + i, y + j, z + k)
+					data[vil] = c_needles
+					local vila = area:index(x + i, y + j + 1, z + k)
+					data[vila] = c_needles
+					local vilaa = area:index(x + i, y + j + 2, z + k)
+					data[vilaa] = c_snowblock
+				end
+			end
+			end
+		end
+		local vit = area:index(x, y + j, z)
+		data[vit] = c_pinetree
+	end
+	local vil = area:index(x, y + 15, z)
+	local vila = area:index(x, y + 16, z)
+	local vilaa = area:index(x, y + 17, z)
+	data[vil] = c_needles
+	data[vila] = c_needles
+	data[vilaa] = c_snowblock
+end
+
+function riverdev_jungletree(x, y, z, area, data)
+	local c_juntree = minetest.get_content_id("default:jungletree")
+	local c_junleaf = minetest.get_content_id("riverdev:jungleleaf")
+	local c_vine = minetest.get_content_id("riverdev:vine")
+	local top = math.random(17,23)
+	local branch = math.floor(top * 0.6)
+	for j = -5, top do
+		if j == top or j == top - 1 or j == branch + 1 or j == branch + 2 then
+			for i = -2, 2 do -- leaves
+			for k = -2, 2 do
+				local vi = area:index(x + i, y + j, z + k)
+				if math.random(5) ~= 2 then
+					data[vi] = c_junleaf
+				end
+			end
+			end
+		elseif j == top - 2 or j == branch then -- branches
+			for i = -1, 1 do
+			for k = -1, 1 do
+				if math.abs(i) + math.abs(k) == 2 then
+					local vi = area:index(x + i, y + j, z + k)
+					data[vi] = c_juntree
+				end
+			end
+			end
+		end
+		if j >= 0 and j <= top - 3 then -- climbable nodes
+			for i = -1, 1 do
+			for k = -1, 1 do
+				if math.abs(i) + math.abs(k) == 1 then
+					local vi = area:index(x + i, y + j, z + k)
+					data[vi] = c_vine
+				end
+			end
+			end
+		end
+		if j <= top - 3 then -- trunk
+			local vi = area:index(x, y + j, z)
+			data[vi] = c_juntree
+		end
+	end
 end
 
 function riverdev_flower(data, vi)
@@ -145,12 +244,37 @@ minetest.register_abm({
 		local z = pos.z
 		local vm = minetest.get_voxel_manip()
 		local pos1 = {x=x-2, y=y-4, z=z-2}
-		local pos2 = {x=x+2, y=y+16, z=z+2}
+		local pos2 = {x=x+2, y=y+17, z=z+2}
 		local emin, emax = vm:read_from_map(pos1, pos2)
 		local area = VoxelArea:new({MinEdge=emin, MaxEdge=emax})
 		local data = vm:get_data()
 
 		riverdev_pinetree(x, y, z, area, data)
+
+		vm:set_data(data)
+		vm:write_to_map()
+		vm:update_map()
+	end,
+})
+
+-- Jungletree sapling
+
+minetest.register_abm({
+	nodenames = {"riverdev:jungling"},
+	interval = 63,
+	chance = 3,
+	action = function(pos, node)
+		local x = pos.x
+		local y = pos.y
+		local z = pos.z
+		local vm = minetest.get_voxel_manip()
+		local pos1 = {x=x-2, y=y-5, z=z-2}
+		local pos2 = {x=x+2, y=y+23, z=z+2}
+		local emin, emax = vm:read_from_map(pos1, pos2)
+		local area = VoxelArea:new({MinEdge=emin, MaxEdge=emax})
+		local data = vm:get_data()
+		-- check temp/humid
+		riverdev_jungletree(x, y, z, area, data)
 
 		vm:set_data(data)
 		vm:write_to_map()
