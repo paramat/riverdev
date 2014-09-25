@@ -1,17 +1,12 @@
--- riverdev 0.5.0 by paramat
+-- riverdev 0.5.1 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
 
--- liquid range 2
--- improved pines with branches
--- rainforest, taiga biomes
--- blend tunnels to fissures at ridge
--- snowblocks on stone
--- path clearings narrow in rainforest
+-- boulders
+-- tune noise parameters, big biomes
 -- TODO
 -- magma tunnels
--- 3D noise boulders spawning at surface level
 -- packed snow above paths
 
 -- Parameters
@@ -34,7 +29,8 @@ local TPFLO = 0.03 -- Width of flora clearing around paths
 local TTUN = 0.02 -- Tunnel width
 
 local ORECHA = 1 / 5 ^ 3 -- Ore chance per stone node. 1 / n ^ 3 where n = average distance between ores
-local APPCHA = 1 / 5 ^ 2 -- Appletree maximum chance per grass node. 1 / n ^ 2 where n = average minimum distance between flora
+local BOLCHA = 1 / 61 ^ 2 -- Boulder maximum chance per grass node. 1 / n ^ 2 where n = average minimum distance between flora
+local APPCHA = 1 / 5 ^ 2 -- Appletree maximum chance per grass node
 local PINCHA = 1 / 6 ^ 2 -- Pinetree maximum chance per grass node
 local JUNCHA = 1 / 4 ^ 2 -- Jungletree maximum chance per grass node
 local GRACHA = 1 / 5 ^ 2 -- Grasses maximum chance per grass node
@@ -102,7 +98,7 @@ local np_pathb = {
 local np_temp = {
 	offset = 0,
 	scale = 1,
-	spread = {x=536, y=536, z=536},
+	spread = {x=3072, y=3072, z=3072},
 	seed = 18882,
 	octaves = 3,
 	persist = 0.4
@@ -113,10 +109,10 @@ local np_temp = {
 local np_tree = {
 	offset = 0,
 	scale = 1,
-	spread = {x=192, y=192, z=192},
+	spread = {x=384, y=384, z=384},
 	seed = 133338,
 	octaves = 3,
-	persist = 0.5
+	persist = 0.6
 }
 
 -- 2D noise for grasses
@@ -124,10 +120,10 @@ local np_tree = {
 local np_grass = {
 	offset = 0,
 	scale = 1,
-	spread = {x=192, y=192, z=192},
+	spread = {x=384, y=384, z=384},
 	seed = 133,
 	octaves = 2,
-	persist = 0.5
+	persist = 0.6
 }
 
 -- 3D noises for tunnels
@@ -272,7 +268,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local trsand = TRSAND * n_absbase
 
 			local weba = math.abs(nvals_weba[nixyz]) < TTUN
-			local webb = math.abs(nvals_webb[nixyz]) < TTUN + n_invbase ^ 8 * 4 -- blend tunnel into fissure at ridge
+			local webb = math.abs(nvals_webb[nixyz]) < TTUN + n_invbase ^ 8 * 2 -- blend tunnel into fissure at ridge
 			local novoid = not (weba and webb)
 
 			local wood = densitybase > trsand * 2 and density < 0
@@ -354,7 +350,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					stable[si] = 0
 					under[si] = 0
 				elseif density >= 0 and density < tstone and stable[si] >= 2 then -- fine materials
-					if y <= YSAND + math.random(0, 1)
+					if y <= YSAND + math.random(-1, 1)
 					or densitybase >= trsand + math.random() * 0.002 then
 						data[vi] = c_sand
 						under[si] = 1
@@ -383,8 +379,16 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				elseif density < 0 and under[si] ~= 0 -- air above surface
 				and nodid ~= c_path and nodidu ~= c_path
 				and nodid ~= c_wood and nodidu ~= c_wood then
-					if under[si] == 2 then -- forest/grassland
-						if math.random() < APPCHA * n_tree and y < YPINE
+					if under[si] == 1 then -- sand
+						if math.random() < BOLCHA
+						and n_abspatha > TPFLO and n_abspathb > TPFLO then
+							riverdev_boulder(x, y, z, area, data)
+						end
+					elseif under[si] == 2 then -- forest/grassland
+						if math.random() < BOLCHA
+						and n_abspatha > TPFLO and n_abspathb > TPFLO then
+							riverdev_boulder(x, y, z, area, data)
+						elseif math.random() < APPCHA * n_tree and y < YPINE
 						and n_abspatha > TPFLO and n_abspathb > TPFLO then
 							riverdev_appletree(x, y, z, area, data)
 						elseif math.random() < PINCHA * n_tree and y >= YPINE
