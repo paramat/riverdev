@@ -3,12 +3,9 @@
 -- Depends default
 -- License: code WTFPL
 
--- fix dirt/sand replacing boulder
 -- boulders eroded by water
 -- clear nodes above path
 -- magma tunnels
--- TODO
--- gravel in fissures, on mountains
 
 -- Parameters
 
@@ -17,7 +14,7 @@ local YMAX = 1024
 local YWATER = 1
 local YSAND = 4 -- Top of beach y
 local YTER = -64 -- Deepest seabed y
-local YPINE = 32 -- Pines above this y
+local YPINE = 47 -- Pines above this y
 
 local TERSCA = 512 -- Terrain vertical scale in nodes
 local BASAMP = 0.3 -- Base amplitude relative to 3D noise amplitude. Ridge network structure
@@ -38,7 +35,7 @@ local JUNCHA = 1 / 4 ^ 2 -- Jungletree maximum chance per grass node
 local GRACHA = 1 / 5 ^ 2 -- Grasses maximum chance per grass node
 local FLOCHA = 1 / 61 ^ 2 -- Flower chance per grass node
 local LOTET = -0.4
-local HITET = 0.6
+local HITET = 0.4
 
 -- 3D noise for highland terrain
 
@@ -202,7 +199,6 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_snowblock = minetest.get_content_id("default:snowblock")
 	local c_grass5 = minetest.get_content_id("default:grass_5")
 	local c_lava = minetest.get_content_id("default:lava_source")
-	local c_gravel = minetest.get_content_id("default:gravel")
 	local c_jungrass = minetest.get_content_id("default:junglegrass")
 	local c_stodiam = minetest.get_content_id("default:stone_with_diamond")
 	local c_stomese = minetest.get_content_id("default:stone_with_mese")
@@ -369,15 +365,18 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					for k = -1, 1 do
 						local vi = area:index(x-1, y-1, z+k)
 						local via = vi + emerlen
+						local viaa = via + emerlen
 						for i = -1, 1 do
 							if wood then
 								data[vi] = c_wood
 							else
 								data[vi] = c_path
 							end
-							data[via] = c_air -- clear node above path
+							data[via] = c_air -- clear nodes above path
+							data[viaa] = c_air
 							vi = vi + 1
 							via = via + 1
+							viaa = viaa + 1
 						end
 					end
 					stable[si] = 0
