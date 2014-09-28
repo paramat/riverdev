@@ -1,13 +1,14 @@
--- riverdev 0.5.1 by paramat
+-- riverdev 0.5.2 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
 
--- boulders
--- tune noise parameters, big biomes
--- TODO
+-- fix dirt/sand replacing boulder
+-- boulders eroded by water
+-- clear nodes above path
 -- magma tunnels
--- packed snow above paths
+-- TODO
+-- gravel in fissures, on mountains
 
 -- Parameters
 
@@ -25,16 +26,17 @@ local MIDAMP = 0.05 -- Mid amplitude relative to 3D noise amplitude. River valle
 local TSTONE = 0.02
 local TRIVER = -0.018
 local TRSAND = -0.02
-local TPFLO = 0.03 -- Width of flora clearing around paths
-local TTUN = 0.02 -- Tunnel width
+local TPFLO = 0.02 -- Width of flora clearing around paths
+local TTUN = 0.02 -- Tunnel/fissure width
+local TMAG = 0.01 -- Magma tunnel width
 
 local ORECHA = 1 / 5 ^ 3 -- Ore chance per stone node. 1 / n ^ 3 where n = average distance between ores
-local BOLCHA = 1 / 61 ^ 2 -- Boulder maximum chance per grass node. 1 / n ^ 2 where n = average minimum distance between flora
+local BOLCHA = 1 / 127 ^ 2 -- Boulder maximum chance per grass node. 1 / n ^ 2 where n = average minimum distance between flora
 local APPCHA = 1 / 5 ^ 2 -- Appletree maximum chance per grass node
 local PINCHA = 1 / 6 ^ 2 -- Pinetree maximum chance per grass node
 local JUNCHA = 1 / 4 ^ 2 -- Jungletree maximum chance per grass node
 local GRACHA = 1 / 5 ^ 2 -- Grasses maximum chance per grass node
-local FLOCHA = 1 / 47 ^ 2 -- Flower chance per grass node
+local FLOCHA = 1 / 61 ^ 2 -- Flower chance per grass node
 local LOTET = -0.4
 local HITET = 0.6
 
@@ -111,7 +113,7 @@ local np_tree = {
 	scale = 1,
 	spread = {x=384, y=384, z=384},
 	seed = 133338,
-	octaves = 3,
+	octaves = 4,
 	persist = 0.6
 }
 
@@ -122,7 +124,7 @@ local np_grass = {
 	scale = 1,
 	spread = {x=384, y=384, z=384},
 	seed = 133,
-	octaves = 2,
+	octaves = 3,
 	persist = 0.6
 }
 
@@ -146,9 +148,27 @@ local np_webb = {
 	persist = 0.5
 }
 
--- Stuff
+-- 3D noise for magma tunnels
 
-riverdev = {}
+local np_webc = {
+	offset = 0,
+	scale = 1,
+	spread = {x=384, y=384, z=384},
+	seed = -181,
+	octaves = 3,
+	persist = 0.4
+}
+
+local np_webd = {
+	offset = 0,
+	scale = 1,
+	spread = {x=383, y=383, z=383},
+	seed = 1022081,
+	octaves = 3,
+	persist = 0.4
+}
+
+-- Stuff
 
 dofile(minetest.get_modpath("riverdev").."/functions.lua")
 dofile(minetest.get_modpath("riverdev").."/nodes.lua")
@@ -178,9 +198,11 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_ignore = minetest.get_content_id("ignore")
 	local c_water = minetest.get_content_id("default:water_source")
 	local c_sand = minetest.get_content_id("default:sand")
-	local c_wood = minetest.get_content_id("default:wood")
+	local c_wood = minetest.get_content_id("default:junglewood")
 	local c_snowblock = minetest.get_content_id("default:snowblock")
 	local c_grass5 = minetest.get_content_id("default:grass_5")
+	local c_lava = minetest.get_content_id("default:lava_source")
+	local c_gravel = minetest.get_content_id("default:gravel")
 	local c_jungrass = minetest.get_content_id("default:junglegrass")
 	local c_stodiam = minetest.get_content_id("default:stone_with_diamond")
 	local c_stomese = minetest.get_content_id("default:stone_with_mese")
@@ -210,6 +232,8 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local nvals_terrain = minetest.get_perlin_map(np_terrain, chulensxyz):get3dMap_flat(minposxyz)
 	local nvals_weba = minetest.get_perlin_map(np_weba, chulensxyz):get3dMap_flat(minposxyz)
 	local nvals_webb = minetest.get_perlin_map(np_webb, chulensxyz):get3dMap_flat(minposxyz)
+	local nvals_webc = minetest.get_perlin_map(np_webc, chulensxyz):get3dMap_flat(minposxyz)
+	local nvals_webd = minetest.get_perlin_map(np_webd, chulensxyz):get3dMap_flat(minposxyz)
 
 	local nvals_mid = minetest.get_perlin_map(np_mid, chulensxz):get2dMap_flat(minposxz)
 	local nvals_base = minetest.get_perlin_map(np_base, chulensxz):get2dMap_flat(minposxz)
@@ -233,7 +257,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	for y = y0 - 1, y1 + 1 do
 		local si = 1
 		local vi = area:index(x0-1, y, z)
-		local viu = area:index(x0-1, y-1, z)
+		local viu = vi - emerlen
 		local n_xprepatha = false
 		local n_xprepathb = false
 		for x = x0 - 1, x1 do
@@ -261,7 +285,8 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local grad = (YTER - y) / TERSCA
 			local densitybase = n_invbase * BASAMP + grad
 			local densitymid = n_absmid * MIDAMP + densitybase
-			local density = n_terrain * n_invbase * n_absmid * n_abspatha ^ 1.5 * n_abspathb ^ 1.5 + densitymid
+			local density = n_terrain * n_invbase * n_absmid * n_abspatha ^ 1.5 * n_abspathb ^ 1.5
+			+ densitymid
 			
 			local tstone = TSTONE * (1 + grad * 2)
 			local triver = TRIVER * n_absbase
@@ -270,6 +295,8 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local weba = math.abs(nvals_weba[nixyz]) < TTUN
 			local webb = math.abs(nvals_webb[nixyz]) < TTUN + n_invbase ^ 8 * 2 -- blend tunnel into fissure at ridge
 			local novoid = not (weba and webb)
+			local webc = math.abs(nvals_webc[nixyz]) < TMAG
+			local webd = math.abs(nvals_webd[nixyz]) < TMAG
 
 			local wood = densitybase > trsand * 2 and density < 0
 				
@@ -294,8 +321,11 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					end
 				end
 			elseif chunkxz and y >= y0 and y <= y1 then -- chunk generation
-				if density >= tstone
-				and (novoid
+				if density >= tstone and webc and webd then -- magma
+					data[vi] = c_lava
+					stable[si] = 0
+					under[si] = 0
+				elseif density >= tstone and (novoid
 				or (density < tstone * 1.5
 				and (y <= YWATER or densitybase >= triver))) then
 					if math.random() < ORECHA and density > TSTONE then -- ores
@@ -327,7 +357,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				or ((n_pathb >= 0 and n_zprepathb < 0) or (n_pathb < 0 and n_zprepathb >= 0))) then
 					if wood and math.random() < 0.125 then
 						local vi = area:index(x, y-2, z)
-						for j = 1, (16 + y - y0) do
+						for j = y-2, y0-16, -1 do -- use mapblock shell
 							if data[vi] == c_stone then
 								break
 							else
@@ -338,18 +368,22 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					end
 					for k = -1, 1 do
 						local vi = area:index(x-1, y-1, z+k)
+						local via = vi + emerlen
 						for i = -1, 1 do
 							if wood then
 								data[vi] = c_wood
 							else
 								data[vi] = c_path
 							end
+							data[via] = c_air -- clear node above path
 							vi = vi + 1
+							via = via + 1
 						end
 					end
 					stable[si] = 0
 					under[si] = 0
-				elseif density >= 0 and density < tstone and stable[si] >= 2 then -- fine materials
+				elseif density >= 0 and density < tstone -- fine materials
+				and stable[si] >= 2 and nodid ~= c_stone then -- do not replace boulder
 					if y <= YSAND + math.random(-1, 1)
 					or densitybase >= trsand + math.random() * 0.002 then
 						data[vi] = c_sand
@@ -376,8 +410,8 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					end
 					stable[si] = 0
 					under[si] = 0
-				elseif density < 0 and under[si] ~= 0 -- air above surface
-				and nodid ~= c_path and nodidu ~= c_path
+				elseif density < 0 and under[si] ~= 0 and nodid ~= c_stone -- node above surface
+				and nodid ~= c_path and nodidu ~= c_path -- do not replace boulder
 				and nodid ~= c_wood and nodidu ~= c_wood then
 					if under[si] == 1 then -- sand
 						if math.random() < BOLCHA
@@ -459,7 +493,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 							vi = vi + 1
 						end
 					end
-				elseif density < 0 and under[si] ~= 0
+				elseif density < 0 and under[si] ~= 0 and nodid ~= c_stone
 				and nodid ~= c_path and nodidu ~= c_path
 				and nodid ~= c_wood and nodidu ~= c_wood then
 					if under[si] == 2 then -- forest/grassland
