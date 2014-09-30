@@ -1,11 +1,10 @@
--- riverdev 0.5.2 by paramat
+-- riverdev 0.5.3 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
 
--- boulders eroded by water
--- clear nodes above path
--- magma tunnels
+-- junglewood bridges
+-- obsidian cones and tubes around magma channels
 
 -- Parameters
 
@@ -26,6 +25,7 @@ local TRSAND = -0.02
 local TPFLO = 0.02 -- Width of flora clearing around paths
 local TTUN = 0.02 -- Tunnel/fissure width
 local TMAG = 0.01 -- Magma tunnel width
+local TOBS = 0.02 -- Obsidian tube width
 
 local ORECHA = 1 / 5 ^ 3 -- Ore chance per stone node. 1 / n ^ 3 where n = average distance between ores
 local BOLCHA = 1 / 127 ^ 2 -- Boulder maximum chance per grass node. 1 / n ^ 2 where n = average minimum distance between flora
@@ -199,6 +199,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_snowblock = minetest.get_content_id("default:snowblock")
 	local c_grass5 = minetest.get_content_id("default:grass_5")
 	local c_lava = minetest.get_content_id("default:lava_source")
+	local c_obsidian = minetest.get_content_id("default:obsidian")
 	local c_jungrass = minetest.get_content_id("default:junglegrass")
 	local c_stodiam = minetest.get_content_id("default:stone_with_diamond")
 	local c_stomese = minetest.get_content_id("default:stone_with_mese")
@@ -289,10 +290,12 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local trsand = TRSAND * n_absbase
 
 			local weba = math.abs(nvals_weba[nixyz]) < TTUN
-			local webb = math.abs(nvals_webb[nixyz]) < TTUN + n_invbase ^ 8 * 2 -- blend tunnel into fissure at ridge
+			local webb = math.abs(nvals_webb[nixyz]) < TTUN + n_invbase ^ 8 * 2 -- blend tunnel to fissure
 			local novoid = not (weba and webb)
-			local webc = math.abs(nvals_webc[nixyz]) < TMAG
-			local webd = math.abs(nvals_webd[nixyz]) < TMAG
+
+			local n_abswebc = math.abs(nvals_webc[nixyz])
+			local n_abswebd = math.abs(nvals_webd[nixyz])
+			local tobs = TOBS + (density + tstone)
 
 			local wood = densitybase > trsand * 2 and density < 0
 				
@@ -317,10 +320,20 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					end
 				end
 			elseif chunkxz and y >= y0 and y <= y1 then -- chunk generation
-				if density >= tstone and webc and webd then -- magma
-					data[vi] = c_lava
-					stable[si] = 0
-					under[si] = 0
+				if density >= -tstone -- magma/obsidian system
+				and ((n_abswebc <= TOBS and n_abswebd <= TOBS)
+				or (density < tstone and n_abswebc <= tobs and n_abswebd <= tobs)) then
+					if n_abswebc < TMAG and n_abswebd < TMAG then
+						if density >= tstone * 2 then -- magma
+							data[vi] = c_lava
+							stable[si] = 0
+							under[si] = 0
+						end
+					else
+						data[vi] = c_obsidian -- obsidian
+						stable[si] = 1
+						under[si] = 0
+					end
 				elseif density >= tstone and (novoid
 				or (density < tstone * 1.5
 				and (y <= YWATER or densitybase >= triver))) then
@@ -453,7 +466,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 								data[vi] = c_jungrass
 							end
 						end
-					elseif under[si] == 5 and n_temp < LOTET then
+					elseif under[si] == 5 and n_temp < LOTET then -- stone
 							data[vi] = c_snowblock
 					end
 					stable[si] = 0
