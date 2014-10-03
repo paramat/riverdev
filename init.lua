@@ -1,10 +1,15 @@
--- riverdev 0.5.3 by paramat
+-- riverdev 0.5.4 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
 
--- junglewood bridges
--- obsidian cones and tubes around magma channels
+-- fixed unknown pine sapling
+-- icy paths in cold biomes
+-- generate as normal to y==y1+1
+-- expand tunnels into fissures, caves using magma noises
+-- TODO
+-- regeneration command: use of mapgen loop function
+-- new pinetree with sloping branches
 
 -- Parameters
 
@@ -53,7 +58,7 @@ local np_terrain = {
 local np_mid = {
 	offset = 0,
 	scale = 1,
-	spread = {x=768, y=768, z=768},
+	spread = {x=1536, y=1536, z=1536},
 	seed = 85546,
 	octaves = 5,
 	persist = 0.4
@@ -99,7 +104,7 @@ local np_temp = {
 	scale = 1,
 	spread = {x=3072, y=3072, z=3072},
 	seed = 18882,
-	octaves = 3,
+	octaves = 4,
 	persist = 0.4
 }
 
@@ -133,7 +138,7 @@ local np_weba = {
 	spread = {x=192, y=192, z=192},
 	seed = 5900033,
 	octaves = 3,
-	persist = 0.5
+	persist = 0.4
 }
 
 local np_webb = {
@@ -142,7 +147,7 @@ local np_webb = {
 	spread = {x=191, y=191, z=191},
 	seed = 33,
 	octaves = 3,
-	persist = 0.5
+	persist = 0.4
 }
 
 -- 3D noise for magma tunnels
@@ -152,7 +157,7 @@ local np_webc = {
 	scale = 1,
 	spread = {x=384, y=384, z=384},
 	seed = -181,
-	octaves = 3,
+	octaves = 4,
 	persist = 0.4
 }
 
@@ -161,7 +166,7 @@ local np_webd = {
 	scale = 1,
 	spread = {x=383, y=383, z=383},
 	seed = 1022081,
-	octaves = 3,
+	octaves = 4,
 	persist = 0.4
 }
 
@@ -169,6 +174,45 @@ local np_webd = {
 
 dofile(minetest.get_modpath("riverdev").."/functions.lua")
 dofile(minetest.get_modpath("riverdev").."/nodes.lua")
+
+-- Mapgen functions
+
+local function riverdev_pathbrush(x, y, z, area, data, y0, wood, emerlen, stable, under, si)
+	local c_stone = minetest.get_content_id("riverdev:stone")
+	local c_path = minetest.get_content_id("riverdev:path")
+	local c_wood = minetest.get_content_id("default:junglewood")
+	local c_ice = minetest.get_content_id("default:ice")
+	if wood and math.random() < 0.2 then
+		local vi = area:index(x, y-2, z)
+		for j = y-2, y0-16, -1 do -- use mapblock shell
+			if data[vi] == c_stone then
+				break
+			else
+				data[vi] = c_wood
+			end
+			vi = vi - emerlen
+		end
+	end
+	for k = -1, 1 do
+		local vi = area:index(x-1, y-1, z+k)
+		local via = vi + emerlen
+		for i = -1, 1 do
+			if wood then
+				data[vi] = c_wood
+			else
+				data[vi] = c_path
+			end
+			if data[via] ~= c_path and data[via] ~= c_wood
+			and under[si] == 3 then
+				data[via] = c_ice
+			end
+			vi = vi + 1
+			via = via + 1
+		end
+	end
+	stable[si] = 0
+	under[si] = 0
+end
 
 -- On generated function
 
@@ -201,6 +245,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_lava = minetest.get_content_id("default:lava_source")
 	local c_obsidian = minetest.get_content_id("default:obsidian")
 	local c_jungrass = minetest.get_content_id("default:junglegrass")
+	local c_ice = minetest.get_content_id("default:ice")
 	local c_stodiam = minetest.get_content_id("default:stone_with_diamond")
 	local c_stomese = minetest.get_content_id("default:stone_with_mese")
 	local c_stogold = minetest.get_content_id("default:stone_with_gold")
@@ -289,13 +334,14 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local triver = TRIVER * n_absbase
 			local trsand = TRSAND * n_absbase
 
-			local weba = math.abs(nvals_weba[nixyz]) < TTUN
-			local webb = math.abs(nvals_webb[nixyz]) < TTUN + n_invbase ^ 8 * 2 -- blend tunnel to fissure
-			local novoid = not (weba and webb)
-
 			local n_abswebc = math.abs(nvals_webc[nixyz])
 			local n_abswebd = math.abs(nvals_webd[nixyz])
+			local webexpc = 0.5 * math.max(n_abswebc - 0.8, 0)
+			local webexpd = 0.5 * math.max(n_abswebd - 0.8, 0)
+			local weba = math.abs(nvals_weba[nixyz]) < TTUN + webexpc
+			local webb = math.abs(nvals_webb[nixyz]) < TTUN + webexpd -- + n_invbase ^ 8 * 2
 			local tobs = TOBS + (density + tstone)
+			local novoid = not (weba and webb)
 
 			local wood = densitybase > trsand * 2 and density < 0
 				
@@ -319,7 +365,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 						stable[si] = 2
 					end
 				end
-			elseif chunkxz and y >= y0 and y <= y1 then -- chunk generation
+			elseif chunkxz and y >= y0 then -- chunk generation
 				if density >= -tstone -- magma/obsidian system
 				and ((n_abswebc <= TOBS and n_abswebd <= TOBS)
 				or (density < tstone and n_abswebc <= tobs and n_abswebd <= tobs)) then
@@ -364,36 +410,9 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				or ((n_patha >= 0 and n_zprepatha < 0) or (n_patha < 0 and n_zprepatha >= 0))
 				or ((n_pathb >= 0 and n_xprepathb < 0) or (n_pathb < 0 and n_xprepathb >= 0)) -- pathb
 				or ((n_pathb >= 0 and n_zprepathb < 0) or (n_pathb < 0 and n_zprepathb >= 0))) then
-					if wood and math.random() < 0.125 then
-						local vi = area:index(x, y-2, z)
-						for j = y-2, y0-16, -1 do -- use mapblock shell
-							if data[vi] == c_stone then
-								break
-							else
-								data[vi] = c_wood
-							end
-							vi = vi - emerlen
-						end
-					end
-					for k = -1, 1 do
-						local vi = area:index(x-1, y-1, z+k)
-						local via = vi + emerlen
-						local viaa = via + emerlen
-						for i = -1, 1 do
-							if wood then
-								data[vi] = c_wood
-							else
-								data[vi] = c_path
-							end
-							data[via] = c_air -- clear nodes above path
-							data[viaa] = c_air
-							vi = vi + 1
-							via = via + 1
-							viaa = viaa + 1
-						end
-					end
-					stable[si] = 0
-					under[si] = 0
+
+					riverdev_pathbrush(x, y, z, area, data, y0, wood, emerlen, stable, under, si)
+
 				elseif density >= 0 and density < tstone -- fine materials
 				and stable[si] >= 2 and nodid ~= c_stone then -- do not replace boulder
 					if y <= YSAND + math.random(-1, 1)
@@ -422,8 +441,10 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					end
 					stable[si] = 0
 					under[si] = 0
-				elseif density < 0 and under[si] ~= 0 and nodid ~= c_stone -- node above surface
-				and nodid ~= c_path and nodidu ~= c_path -- do not replace boulder
+				elseif density < 0 and under[si] ~= 0 -- detect surface, place surface nodes
+				and nodid ~= c_stone
+				and nodid ~= c_ice and nodidu ~= c_ice
+				and nodid ~= c_path and nodidu ~= c_path
 				and nodid ~= c_wood and nodidu ~= c_wood then
 					if under[si] == 1 then -- sand
 						if math.random() < BOLCHA
@@ -474,76 +495,6 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				else -- air or tunnel
 					stable[si] = 0
 					under[si] = 0
-				end
-			elseif chunkxz and y == y1 + 1 then -- overgeneration
-				if y > YSAND
-				and ((not wood and density < 0 and under[si] ~= 0)
-				or (wood and densitybase > trsand * 2 and densitybase < trsand * 2 + 0.002))
-				and (((n_patha >= 0 and n_xprepatha < 0) or (n_patha < 0 and n_xprepatha >= 0)) -- patha
-				or ((n_patha >= 0 and n_zprepatha < 0) or (n_patha < 0 and n_zprepatha >= 0))
-				or ((n_pathb >= 0 and n_xprepathb < 0) or (n_pathb < 0 and n_xprepathb >= 0)) -- pathb
-				or ((n_pathb >= 0 and n_zprepathb < 0) or (n_pathb < 0 and n_zprepathb >= 0))) then
-					if wood and math.random() < 0.125 then
-						local vi = area:index(x, y-2, z)
-						for j = 1, (16 + y - y0) do
-							if data[vi] == c_stone then
-								break
-							else
-								data[vi] = c_wood
-							end
-							vi = vi - emerlen
-						end
-					end
-					for k = -1, 1 do
-						local vi = area:index(x-1, y-1, z+k)
-						for i = -1, 1 do
-							if wood then
-								data[vi] = c_wood
-							else
-								data[vi] = c_path
-							end
-							vi = vi + 1
-						end
-					end
-				elseif density < 0 and under[si] ~= 0 and nodid ~= c_stone
-				and nodid ~= c_path and nodidu ~= c_path
-				and nodid ~= c_wood and nodidu ~= c_wood then
-					if under[si] == 2 then -- forest/grassland
-						if math.random() < APPCHA * n_tree and y < YPINE
-						and n_abspatha > TPFLO and n_abspathb > TPFLO then
-							riverdev_appletree(x, y, z, area, data)
-						elseif math.random() < PINCHA * n_tree and y >= YPINE
-						and n_abspatha > TPFLO and n_abspathb > TPFLO then
-							riverdev_pinetree(x, y, z, area, data)
-						else
-							data[viu] = c_grass
-							if math.random() < FLOCHA then
-								riverdev_flower(data, vi)
-							elseif math.random() < GRACHA * n_grass then
-								data[vi] = c_grass5
-							end
-						end
-					elseif under[si] == 3 then -- taiga
-						if math.random() < PINCHA * n_tree
-						and n_abspatha > TPFLO and n_abspathb > TPFLO then
-							riverdev_snowypine(x, y, z, area, data)
-						else
-							data[viu] = c_grass
-							data[vi] = c_snowblock
-						end
-					elseif under[si] == 4 then -- rainforest
-						if math.random() < JUNCHA
-						and n_abspatha > TPFLO / 2 and n_abspathb > TPFLO / 2 then
-							riverdev_jungletree(x, y, z, area, data)
-						else
-							data[viu] = c_grass
-							if math.random() < GRACHA then
-								data[vi] = c_jungrass
-							end
-						end
-					elseif under[si] == 5 and n_temp < LOTET then
-							data[vi] = c_snowblock
-					end
 				end
 			end
 				

@@ -93,7 +93,7 @@ minetest.register_node("riverdev:needles", {
 	drop = {
 		max_items = 1,
 		items = {
-			{items = {"rivedev:pineling"},rarity = 20},
+			{items = {"riverdev:pineling"}, rarity = 20},
 			{items = {"riverdev:needles"}}
 		}
 	},
