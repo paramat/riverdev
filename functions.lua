@@ -337,7 +337,7 @@ function spawnplayer(player)
 		scale = 1,
 		spread = {x=3072, y=3072, z=3072},
 		seed = -990054,
-		octaves = 3,
+		octaves = 2,
 		persist = 0.4
 	}
 	local np_patha = {

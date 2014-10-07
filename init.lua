@@ -3,11 +3,8 @@
 -- Depends default
 -- License: code WTFPL
 
--- fix chunk border glitches
--- fix spawnplayer function
--- fix air around obsidian in river
--- add mapgen function 'surface'
--- remove sand randomness
+-- base terrain 2 octaves
+-- update depends
 -- TODO
 -- regeneration command: use of mapgen loop function
 -- noise controlled canyon shape exponent: widen river at places to create lakes?
@@ -73,7 +70,7 @@ local np_base = {
 	scale = 1,
 	spread = {x=3072, y=3072, z=3072},
 	seed = -990054,
-	octaves = 3,
+	octaves = 2,
 	persist = 0.4
 }
 
