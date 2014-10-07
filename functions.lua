@@ -337,7 +337,7 @@ function spawnplayer(player)
 		scale = 1,
 		spread = {x=3072, y=3072, z=3072},
 		seed = -990054,
-		octaves = 2,
+		octaves = 3,
 		persist = 0.4
 	}
 	local np_patha = {
@@ -395,12 +395,13 @@ function spawnplayer(player)
 					local n_terrain = (nvals_terrain[nixyz] + 2) / 2
 					local n_absmid = (math.abs(nvals_mid[nixz])) ^ 0.8
 					local n_absbase = (math.abs(nvals_base[nixz])) ^ 0.8
-			
-					local n_invbase = (1 - n_absbase)
+					local n_invbase = math.max(1 - n_absbase, 0)
+
 					local grad = (YTER - y) / TERSCA
 					local densitybase = n_invbase * BASAMP + grad
 					local densitymid = n_absmid * MIDAMP + densitybase
-					local density = n_terrain * n_invbase * n_absmid * n_abspatha ^ 1.5 * n_abspathb ^ 1.5 + densitymid
+					local density = n_terrain * n_invbase * n_absmid * n_abspatha ^ 1.5 * n_abspathb ^ 1.5
+					+ densitymid
 
 					if y >= YWATER and density > -0.01 and density < 0 then
 						ysp = y + 1
@@ -430,7 +431,7 @@ function spawnplayer(player)
 		player:setpos({x=xsp, y=ysp, z=zsp})
 	else	
 		print ("[riverdev] no suitable spawn found")
-		player:setpos({x=0, y=0, z=0})
+		player:setpos({x=0, y=2, z=0})
 	end
 end
 
