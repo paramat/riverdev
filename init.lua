@@ -1,22 +1,20 @@
--- riverdev 0.5.6 by paramat
+-- riverdev 0.5.7 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
 
--- remove tunnel expansion
--- add caves using 5 noises
--- jungletrees auto-limit height to avoid chop
--- add fissures
--- 3d noise boulders, some sandstone
+-- return to simple boulders
+-- compressed snow on paths in taiga
+-- update snowypines
+-- add humidity noise from water distance
+-- re-add long grasses noise
+-- vary acaciatree height
+-- add biomes
 -- TODO
 -- regeneration command: use of mapgen loop function
--- update snowypines
 -- coloured stone: desertstone orange sandstone green blue violet
 -- inclined strata with 3d biomes of coloured stone mixes
 -- ores in strata
--- add humidity from water distance
--- add all watershed biomes
--- gravel in tunnels/caves
 
 -- Parameters
 
@@ -24,7 +22,7 @@ local YMIN = -33000 -- Y limits of realm generation
 local YMAX = 1024
 local YWATER = 1 -- Water surface y
 local YSAND = 4 -- Top of beach y
-local YTER = -92 -- Deepest seabed y
+local YTER = -64 -- Deepest seabed y
 local YPINE = 47 -- Pines above this y
 
 local TERSCA = 512 -- Terrain vertical scale in nodes
@@ -43,15 +41,21 @@ local TOBS = 0.025 -- Obsidian tube width
 
 local ORECHA = 1 / 5 ^ 3 -- Ore chance per stone node
 			-- 1 / n ^ 3 where n = average distance between ores
-local BOLCHA = 1 / 32 ^ 2 -- Boulder maximum chance per grass node.
-			-- 1 / n ^ 2 where n = average minimum distance between flora
-local APPCHA = 1 / 5 ^ 2 -- Appletree maximum chance per grass node
-local PINCHA = 1 / 6 ^ 2 -- Pinetree maximum chance per grass node
-local JUNCHA = 1 / 4 ^ 2 -- Jungletree maximum chance per grass node
-local GRACHA = 1 / 5 ^ 2 -- Grasses maximum chance per grass node
-local FLOCHA = 1 / 61 ^ 2 -- Flower chance per grass node
-local LOTET = -0.4 -- Low temperature threshold for taiga/snowyplains
-local HITET = 0.4 -- High temperature threshold for Rainforest
+local BOLCHA = 1 / 127 ^ 2 -- Boulder maximum chance per surface node
+			-- 1 / n ^ 2 where n = average distance between features
+local APPCHA = 1 / 5 ^ 2 -- Appletree maximum chance per node
+local PINCHA = 1 / 6 ^ 2 -- Pinetree maximum chance per node
+local JUNCHA = 1 / 4 ^ 2 -- Jungletree maximum chance per node
+local ACACHA = 1 / 47 ^ 2 -- Acaciatree maximum chance per node
+local GRACHA = 1 / 4 ^ 2 -- Grasses maximum chance per node
+local FLOCHA = 1 / 37 ^ 2 -- Flower chance per node
+local CACCHA = 1 / 73 ^ 2 -- Cactus chance per node
+
+local LOTET = -0.4 -- Low temperature threshold
+local HITET = 0.4 -- High
+local LOHUT = -0.4 -- Low humidity threshold
+local MIDHUT = 0 -- Mid
+local HIHUT = 0.4 -- High
 
 -- 3D noise for highland terrain
 
@@ -64,18 +68,18 @@ local np_terrain = {
 	persist = 0.67
 }
 
--- 2D noise for mid terrain / river
+-- 2D noise for mid terrain / river / humidity
 
 local np_mid = {
 	offset = 0,
 	scale = 1,
-	spread = {x=768, y=768, z=768},
+	spread = {x=1536, y=1536, z=1536},
 	seed = 85546,
-	octaves = 5,
+	octaves = 6,
 	persist = 0.4
 }
 
--- 2D noise for base terrain
+-- 2D noise for base terrain / humidity
 
 local np_base = {
 	offset = 0,
@@ -115,7 +119,7 @@ local np_temp = {
 	scale = 1,
 	spread = {x=3072, y=3072, z=3072},
 	seed = 18882,
-	octaves = 4,
+	octaves = 3,
 	persist = 0.4
 }
 
@@ -128,6 +132,17 @@ local np_tree = {
 	seed = 133338,
 	octaves = 4,
 	persist = 0.6
+}
+
+-- 2D noise for grasses
+
+local np_grass = {
+	offset = 0,
+	scale = 1,
+	spread = {x=192, y=192, z=192},
+	seed = -138,
+	octaves = 4,
+	persist = 0.7
 }
 
 -- 3D noises for tunnels
@@ -204,7 +219,7 @@ local function riverdev_pathbrush(x, y, z, area, data,
 	local c_stone = minetest.get_content_id("riverdev:stone")
 	local c_path = minetest.get_content_id("riverdev:path")
 	local c_wood = minetest.get_content_id("default:junglewood")
-	local c_ice = minetest.get_content_id("default:ice")
+	local c_snow = minetest.get_content_id("default:snow")
 	if wood and math.random() < 0.2 then
 		local vi = area:index(x, y-2, z)
 		for j = y-2, y0-16, -1 do -- use mapblock shell
@@ -226,8 +241,8 @@ local function riverdev_pathbrush(x, y, z, area, data,
 				data[vi] = c_path
 			end
 			if data[via] ~= c_path and data[via] ~= c_wood
-			and under[si] == 3 then
-				data[via] = c_ice
+			and under[si] == 2 then
+				data[via] = c_snow
 			end
 			vi = vi + 1
 			via = via + 1
@@ -238,17 +253,34 @@ local function riverdev_pathbrush(x, y, z, area, data,
 end
 
 local function riverdev_surface(x, y, z, area, data, y1, vi, viu,
-		n_abspatha, n_abspathb, n_tree, n_grass, n_temp, under, si)
+		n_abspatha, n_abspathb, n_tree, n_grass, n_temp, n_humid, under, si)
 	local c_grass = minetest.get_content_id("riverdev:grass")
 	local c_grass5 = minetest.get_content_id("default:grass_5")
 	local c_snowblock = minetest.get_content_id("default:snowblock")
 	local c_jungrass = minetest.get_content_id("default:junglegrass")
-	if under[si] == 1 then -- sand
-		if math.random() < BOLCHA
-		and n_abspatha > TPFLO and n_abspathb > TPFLO then
-			riverdev_boulder(x, y, z, area, data)
+	local c_dryshrub = minetest.get_content_id("default:dry_shrub")
+	local c_drygrass = minetest.get_content_id("riverdev:drygrass")
+	local c_goldengrass = minetest.get_content_id("riverdev:goldengrass")
+	local c_icydirt = minetest.get_content_id("riverdev:icydirt")
+	if under[si] == 1 then -- tundra
+		data[viu] = c_icydirt
+		if math.random() < GRACHA * n_grass then
+			data[vi] = c_dryshrub
 		end
-	elseif under[si] == 2 then -- forest/grassland
+	elseif under[si] == 2 then -- taiga
+		if math.random() < PINCHA * n_tree
+		and n_abspatha > TPFLO and n_abspathb > TPFLO then
+			riverdev_snowypine(x, y, z, area, data)
+		else
+			data[viu] = c_grass
+			data[vi] = c_snowblock
+		end
+	elseif under[si] == 3 then -- dry grassland
+		data[viu] = c_drygrass
+		if math.random() < GRACHA * n_grass then
+			data[vi] = c_dryshrub
+		end
+	elseif under[si] == 4 then -- forest/grassland
 		if math.random() < BOLCHA
 		and n_abspatha > TPFLO and n_abspathb > TPFLO then
 			riverdev_boulder(x, y, z, area, data)
@@ -266,15 +298,20 @@ local function riverdev_surface(x, y, z, area, data, y1, vi, viu,
 				data[vi] = c_grass5
 			end
 		end
-	elseif under[si] == 3 then -- taiga
-		if math.random() < PINCHA * n_tree
-		and n_abspatha > TPFLO and n_abspathb > TPFLO then
-			riverdev_snowypine(x, y, z, area, data)
-		else
-			data[viu] = c_grass
-			data[vi] = c_snowblock
+	elseif under[si] == 5 then -- desert
+		if math.random() < CACCHA * n_grass then
+			riverdev_cactus(x, y, z, area, data)
 		end
-	elseif under[si] == 4 then -- rainforest
+	elseif under[si] == 6 then
+		if math.random() < ACACHA * n_tree then
+			riverdev_acaciatree(x, y, z, area, data)
+		else
+			data[viu] = c_drygrass
+			if math.random() < GRACHA * n_grass then
+				data[vi] = c_goldengrass
+			end
+		end
+	elseif under[si] == 7 then -- rainforest
 		if math.random() < JUNCHA
 		and n_abspatha > TPFLO / 2 and n_abspathb > TPFLO / 2 then
 			riverdev_jungletree(x, y, z, area, data, y1)
@@ -284,7 +321,12 @@ local function riverdev_surface(x, y, z, area, data, y1, vi, viu,
 				data[vi] = c_jungrass
 			end
 		end
-	elseif under[si] == 5 and n_temp < LOTET then -- stone
+	elseif under[si] == 8 then -- sand
+		if math.random() < BOLCHA
+		and n_abspatha > TPFLO and n_abspathb > TPFLO then
+			riverdev_boulder(x, y, z, area, data)
+		end
+	elseif under[si] == 9 and n_temp < LOTET then -- stone
 			data[vi] = c_snowblock
 	end
 end
@@ -321,6 +363,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_obsidian = minetest.get_content_id("default:obsidian")
 	local c_jungrass = minetest.get_content_id("default:junglegrass")
 	local c_ice = minetest.get_content_id("default:ice")
+	local c_desand = minetest.get_content_id("default:desert_sand")
 	local c_stodiam = minetest.get_content_id("default:stone_with_diamond")
 	local c_stomese = minetest.get_content_id("default:stone_with_mese")
 	local c_stogold = minetest.get_content_id("default:stone_with_gold")
@@ -336,6 +379,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_mixwater = minetest.get_content_id("riverdev:mixwater")
 	local c_freshwaterflow = minetest.get_content_id("riverdev:freshwaterflow")
 	local c_mixwaterflow = minetest.get_content_id("riverdev:mixwaterflow")
+	local c_permafrost = minetest.get_content_id("riverdev:permafrost")
 	
 	local sidelen = x1 - x0 + 1 -- mapgen chunk side length
 	local overlen = sidelen + 1 -- perlinmap overgeneration horizontal side length
@@ -360,6 +404,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local nvals_pathb = minetest.get_perlin_map(np_pathb, chulensxz):get2dMap_flat(minposxz)
 	local nvals_temp = minetest.get_perlin_map(np_temp, chulensxz):get2dMap_flat(minposxz)
 	local nvals_tree = minetest.get_perlin_map(np_tree, chulensxz):get2dMap_flat(minposxz)
+	local nvals_grass = minetest.get_perlin_map(np_grass, chulensxz):get2dMap_flat(minposxz)
 	
 	--local noiset = math.ceil((os.clock() - t0) * 1000)
 	--print ("[riverdev] noise "..noiset.." ms")
@@ -382,10 +427,6 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local nodid = data[vi]
 			local nodidu = data[viu]
 			local chunkxz = x >= x0 and z >= z0
-
-			local n_temp = nvals_temp[nixz]
-			local n_tree = math.min(math.max(nvals_tree[nixz], 0), 1)
-			local n_grass = math.min(math.max(-nvals_tree[nixz], 0), 1)
 
 			local n_patha = nvals_patha[nixz]
 			local n_abspatha = math.abs(n_patha)
@@ -424,7 +465,11 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local tobs = TOBS + (density + tstone)
 			local n_strata = nvals_strata[nixyz]
 			local densitystrata = grad + n_strata * 0.5
-				
+			local n_humid = n_absbase - n_absmid
+			local n_temp = nvals_temp[nixz]
+			local n_tree = math.min(math.max(nvals_tree[nixz], 0), 1)
+			local n_grass = math.min(math.max(nvals_grass[nixz], 0), 1)
+
 			if chunkxz and y == y0 - 1 then -- overgeneration, initialise tables
 				under[si] = 0
 				if ungen then -- guess by calculating density
@@ -482,7 +527,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 						data[vi] = c_stone -- stone
 					end
 					stable[si] = stable[si] + 1
-					under[si] = 5
+					under[si] = 9
 				elseif y > YSAND
 				and ((not wood and density < 0 and under[si] ~= 0)
 				or (wood and densitybase > trsand * 2 and densitybase < trsand * 2 + 0.002))
@@ -498,16 +543,34 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				and stable[si] >= 2 and nodid ~= c_stone then -- do not replace boulder
 					if y <= YSAND or densitybase >= trsand then
 						data[vi] = c_sand
-						under[si] = 1
-					elseif n_temp < LOTET then -- taiga/snowyplains
-						data[vi] = c_dirt
-						under[si] = 3
-					elseif n_temp > HITET then -- rainforest
-						data[vi] = c_dirt
-						under[si] = 4
+						under[si] = 8
+					elseif n_temp < LOTET then
+						if n_humid < MIDHUT then -- tundra
+							data[vi] = c_permafrost
+							under[si] = 1
+						else -- taiga
+							data[vi] = c_dirt
+							under[si] = 2
+						end
+					elseif n_temp > HITET then
+						if n_humid < LOHUT then -- desert
+							data[vi] = c_desand
+							under[si] = 5
+						elseif n_humid > HIHUT then -- savanna
+							data[vi] = c_dirt
+							under[si] = 6
+						else -- rainforest
+							data[vi] = c_dirt
+							under[si] = 7
+						end
 					else
-						data[vi] = c_dirt -- deciduous forest/grassland
-						under[si] = 2
+						if n_humid < MIDHUT then -- drygrass
+							data[vi] = c_dirt
+							under[si] = 3
+						else -- deciduous forest / grassland
+							data[vi] = c_dirt
+							under[si] = 4
+						end
 					end
 				elseif y <= YWATER and density < tstone and nodid ~= c_stone then -- sea water
 					data[vi] = c_water
@@ -528,7 +591,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				and nodid ~= c_wood and nodidu ~= c_wood then
 
 					riverdev_surface(x, y, z, area, data, y1, vi, viu,
-					n_abspatha, n_abspathb, n_tree, n_grass, n_temp, under, si)
+					n_abspatha, n_abspathb, n_tree, n_grass, n_temp, n_humid, under, si)
 
 					stable[si] = 0
 					under[si] = 0
@@ -555,7 +618,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				and nodid ~= c_wood and nodidu ~= c_wood then
 
 					riverdev_surface(x, y, z, area, data, y1, vi, viu,
-					n_abspatha, n_abspathb, n_tree, n_grass, n_temp, under, si)
+					n_abspatha, n_abspathb, n_tree, n_grass, n_temp, n_humid, under, si)
 
 				end
 			end

@@ -174,6 +174,121 @@ minetest.register_node("riverdev:jungling", {
 	sounds = default.node_sound_leaves_defaults(),
 })
 
+
+minetest.register_node("riverdev:acaciatree", {
+	description = "Acacia tree",
+	tiles = {"riverdev_acaciatreetop.png", "riverdev_acaciatreetop.png", "riverdev_acaciatree.png"},
+	paramtype2 = "facedir",
+	is_ground_content = false,
+	groups = {tree=1,choppy=2,oddly_breakable_by_hand=1,flammable=2},
+	sounds = default.node_sound_wood_defaults(),
+	on_place = minetest.rotate_node
+})
+
+minetest.register_node("riverdev:acacialeaf", {
+	description = "Acacia leaves",
+	drawtype = "allfaces_optional",
+	visual_scale = 1.3,
+	tiles = {"riverdev_acacialeaf.png"},
+	paramtype = "light",
+	is_ground_content = false,
+	groups = {snappy=3, flammable=2, leaves=1},
+	drop = {
+		max_items = 1,
+		items = {
+			{items = {"riverdev:acacialing"},rarity = 20},
+			{items = {"riverdev:acacialeaf"}}
+		}
+	},
+	sounds = default.node_sound_leaves_defaults(),
+})
+
+minetest.register_node("riverdev:acacialing", {
+	description = "Acacia tree sapling",
+	drawtype = "plantlike",
+	visual_scale = 1.0,
+	tiles = {"riverdev_acacialing.png"},
+	inventory_image = "riverdev_acacialing.png",
+	wield_image = "riverdev_acacialing.png",
+	paramtype = "light",
+	walkable = false,
+	is_ground_content = false,
+	selection_box = {
+		type = "fixed",
+		fixed = {-0.3, -0.5, -0.3, 0.3, 0.35, 0.3}
+	},
+	groups = {snappy=2,dig_immediate=3,flammable=2,attached_node=1},
+	sounds = default.node_sound_leaves_defaults(),
+})
+
+minetest.register_node("riverdev:acaciawood", {
+	description = "Acacia wood planks",
+	tiles = {"riverdev_acaciawood.png"},
+	groups = {choppy=2,oddly_breakable_by_hand=2,flammable=3,wood=1},
+	sounds = default.node_sound_wood_defaults(),
+})
+
+minetest.register_node("riverdev:goldengrass", {
+	description = "Golden grass",
+	drawtype = "plantlike",
+	tiles = {"riverdev_goldengrass.png"},
+	inventory_image = "riverdev_goldengrass.png",
+	wield_image = "riverdev_goldengrass.png",
+	paramtype = "light",
+	walkable = false,
+	buildable_to = true,
+	is_ground_content = false,
+	groups = {snappy=3,flammable=3,flora=1,attached_node=1},
+	sounds = default.node_sound_leaves_defaults(),
+	selection_box = {
+		type = "fixed",
+		fixed = {-0.5, -0.5, -0.5, 0.5, -5/16, 0.5},
+	},
+})
+
+minetest.register_node("riverdev:drygrass", {
+	description = "Dry grass",
+	tiles = {"riverdev_drygrass.png"},
+	is_ground_content = false,
+	groups = {crumbly=1,soil=1},
+	drop = "default:dirt",
+	sounds = default.node_sound_dirt_defaults({
+		footstep = {name="default_grass_footstep", gain=0.4},
+	}),
+})
+
+minetest.register_node("riverdev:icydirt", {
+	description = "Icy dirt",
+	tiles = {"riverdev_icydirt.png"},
+	is_ground_content = false,
+	groups = {crumbly=1},
+	drop = "default:dirt",
+	sounds = default.node_sound_dirt_defaults({
+		footstep = {name="default_snow_footstep", gain=0.15},
+		dug = {name="default_snow_footstep", gain=0.45},
+	}),
+})
+
+minetest.register_node("riverdev:permafrost", {
+	description = "Permafrost",
+	tiles = {"riverdev_permafrost.png"},
+	is_ground_content = false,
+	groups = {crumbly=1},
+	drop = "default:dirt",
+	sounds = default.node_sound_dirt_defaults(),
+})
+
+minetest.register_node("riverdev:cactus", {
+	description = "Cactus",
+	tiles = {"default_cactus_top.png", "default_cactus_top.png", "default_cactus_side.png"},
+	paramtype2 = "facedir",
+	is_ground_content = false,
+	groups = {snappy=1,choppy=3,flammable=2},
+	drop = "default:cactus",
+	sounds = default.node_sound_wood_defaults(),
+	on_place = minetest.rotate_node
+})
+
 minetest.register_node("riverdev:freshwater", {
 	description = "Fresh Water Source",
 	inventory_image = minetest.inventorycube("riverdev_freshwater.png"),
@@ -333,6 +448,13 @@ minetest.register_craft({
 	}
 })
 
+minetest.register_craft({
+	output = "riverdev:acaciawood 4",
+	recipe = {
+		{"riverdev:acaciatree"},
+	}
+})
+
 -- Register stairs and slabs
 
 stairs.register_stair_and_slab(
@@ -342,6 +464,16 @@ stairs.register_stair_and_slab(
 	{"riverdev_pinewood.png"},
 	"Pinewood stair",
 	"Pinewood slab",
+	default.node_sound_wood_defaults()
+)
+
+stairs.register_stair_and_slab(
+	"acaciawood",
+	"riverdev:acaciawood",
+	{snappy=2,choppy=2,oddly_breakable_by_hand=2,flammable=3},
+	{"riverdev_acaciawood.png"},
+	"Acaciawood stair",
+	"Acaciawood slab",
 	default.node_sound_wood_defaults()
 )
 
