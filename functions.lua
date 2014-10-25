@@ -139,11 +139,11 @@ function riverdev_snowypine(x, y, z, area, data)
 	data[vilaa] = c_snowblock
 end
 
-function riverdev_jungletree(x, y, z, area, data)
+function riverdev_jungletree(x, y, z, area, data, y1)
 	local c_juntree = minetest.get_content_id("default:jungletree")
 	local c_junleaf = minetest.get_content_id("riverdev:jungleleaf")
 	local c_vine = minetest.get_content_id("riverdev:vine")
-	local top = math.random(17,23)
+	local top = math.min(math.random(17,23), y1 +16 - y) -- avoid chopped trees
 	local branch = math.floor(top * 0.6)
 	for j = -5, top do
 		if j == top or j == top - 1 or j == branch + 1 or j == branch + 2 then
@@ -183,18 +183,34 @@ function riverdev_jungletree(x, y, z, area, data)
 end
 
 function riverdev_boulder(x, y, z, area, data)
-	local c_stone = minetest.get_content_id("riverdev:stone")
-	local dx = math.random() * 15 + 1
-	local dy = math.random() * 15 + 1
-	local dz = math.random() * 15 + 1
+	local np_boulder = {
+		offset = 0,
+		scale = 1,
+		spread = {x=16, y=16, z=16},
+		seed = 5933,
+		octaves = 2,
+		persist = 0.67
+	}
+	local chulens = {x=17, y=17, z=17}
+	local minpos = {x=x-8, y=y-8, z=z-8}
+	local nvals_boulder = minetest.get_perlin_map(np_boulder, chulens):get3dMap_flat(minpos)
+	local c_boulder
+	if math.random() < 0.2 then
+		c_boulder = minetest.get_content_id("default:sandstone")
+	else
+		c_boulder = minetest.get_content_id("riverdev:stone")
+	end
+	local avrad = 2 + math.random() * 3
+	local ni = 1
 	for k = -8, 8 do
 	for j = -8, 8 do
 		local vi = area:index(x-8, y+j, z+k)
 		for i = -8, 8 do
-			if (i ^ 2 * dx + j ^ 2 * dy + k ^ 2 * dz) ^ 0.5 < 8 then
-				data[vi] = c_stone
+			if (i ^ 2 + j ^ 2 + k ^ 2) ^ 0.5 < avrad * (1 + nvals_boulder[ni] * 0.7) then
+				data[vi] = c_boulder
 			end
 			vi = vi + 1
+			ni = ni + 1
 		end
 	end
 	end
