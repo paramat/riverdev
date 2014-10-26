@@ -3,9 +3,7 @@
 -- Depends default
 -- License: code WTFPL
 
--- patches of grass
--- redstone in desert
--- simple sandstone strata
+-- improve strata
 -- TODO
 -- regeneration command: use of mapgen loop function
 -- coloured stone: desertstone orange sandstone green blue violet
@@ -32,7 +30,7 @@ local TRSAND = -0.02 -- Depth of river sand
 local TPFLO = 0.02 -- Width of flora clearing around paths
 local TTUN = 0.02 -- Tunnel width
 local TFIS = 0.004 -- Fissure width
-local TCAV = 1 -- Cavern threshold
+local TCAV = 1.1 -- Cavern threshold
 local TMAG = 0.015 -- Magma tunnel width
 local TOBS = 0.025 -- Obsidian tube width
 
@@ -148,7 +146,7 @@ local np_weba = {
 	scale = 1,
 	spread = {x=192, y=192, z=192},
 	seed = 5900033,
-	octaves = 4,
+	octaves = 3,
 	persist = 0.4
 }
 
@@ -207,9 +205,6 @@ local np_strata = {
 
 dofile(minetest.get_modpath("riverdev").."/functions.lua")
 dofile(minetest.get_modpath("riverdev").."/nodes.lua")
-
-local nvals_strata
-local stratanoise = false
 
 -- Mapgen functions
 
@@ -457,7 +452,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local n_grass = math.abs(nvals_grass[nixz])
 			local n_strata = nvals_strata[nixyz]
 			local n_temp = nvals_temp[nixz]
-			local n_humid = math.abs(nvals_humid[nixz]) - n_absmid * 0.5 + 0.25
+			local n_humid = math.abs(nvals_humid[nixz]) - n_absmid * 0.5 + 0.5
 			local tstone = TSTONE * (1 + grad * 2)
 			local triver = TRIVER * n_absbase
 			local trsand = TRSAND * n_absbase
@@ -525,7 +520,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				elseif density >= tstone and (novoid
 				or (density < tstone * 1.5
 				and (y <= YWATER or densitybase >= triver))) then
-					if n_strata > 0.7 then
+					if math.abs(n_strata) < 0.2 then
 						data[vi] = c_sandstone -- redstone layer
 					elseif biome == 5 then
 						data[vi] = c_redstone -- redstone layer
