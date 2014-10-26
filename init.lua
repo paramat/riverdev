@@ -1,14 +1,17 @@
--- riverdev 0.5.8 by paramat
+-- riverdev 0.5.9 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
 
--- humidity by displacing seamap in wind direction, plus a river influence
+-- patches of grass
+-- redstone in desert
+-- simple sandstone strata
 -- TODO
 -- regeneration command: use of mapgen loop function
 -- coloured stone: desertstone orange sandstone green blue violet
 -- inclined strata with 3d biomes of coloured stone mixes
 -- ores in strata
+-- dry long grass to replace dry shrub
 
 -- Parameters
 
@@ -28,7 +31,7 @@ local TRIVER = -0.018 -- River depth
 local TRSAND = -0.02 -- Depth of river sand
 local TPFLO = 0.02 -- Width of flora clearing around paths
 local TTUN = 0.02 -- Tunnel width
-local TFIS = 0.005 -- Fissure width
+local TFIS = 0.004 -- Fissure width
 local TCAV = 1 -- Cavern threshold
 local TMAG = 0.015 -- Magma tunnel width
 local TOBS = 0.025 -- Obsidian tube width
@@ -36,31 +39,19 @@ local TOBS = 0.025 -- Obsidian tube width
 -- 1 / n ^ 3 where n = average distance between ores
 local ORECHA = 1 / 5 ^ 3 -- Ore chance per stone node
 -- 1 / n ^ 2 where n = average distance between features
-local BOLCHA = 1 / 127 ^ 2 -- Boulder chance per surfacenode
-local FLOCHA = 1 / 37 ^ 2 -- Flower ^
+local BOLCHA = 1 / 128 ^ 2 -- Boulder chance per surfacenode
+local FLOCHA = 1 / 48 ^ 2 -- Flower ^
 local JUNCHA = 1 / 4 ^ 2 -- Jungletree ^
+local CACCHA = 1 / 128 ^ 2 -- Cactus ^
+local GRACHA = 1 / 2 ^ 2 -- Grasses ^
 local APPCHA = 1 / 5 ^ 2 -- Appletree maximum chance per surface node
 local PINCHA = 1 / 6 ^ 2 -- Pinetree ^
-local ACACHA = 1 / 47 ^ 2 -- Acaciatree ^
-local GRACHA = 1 / 4 ^ 2 -- Grasses ^
-local CACCHA = 1 / 47 ^ 2 -- Cactus ^
+local ACACHA = 1 / 64 ^ 2 -- Acaciatree ^
 
 local LOTET = -0.4 -- Low temperature threshold
 local HITET = 0.4 -- High ^
 local LOHUT = 0.2 -- Low humidity threshold (abs noise)
-local MIDHUT = 0.4 -- Mid ^
 local HIHUT = 0.6 -- High ^
-
--- 3D noise for highland terrain
-
-local np_terrain = {
-	offset = 0,
-	scale = 1,
-	spread = {x=192, y=192, z=192},
-	seed = 5900033,
-	octaves = 4,
-	persist = 0.67
-}
 
 -- 2D noise for mid terrain / river
 
@@ -125,7 +116,7 @@ local np_tree = {
 	spread = {x=384, y=384, z=384},
 	seed = 133338,
 	octaves = 4,
-	persist = 0.6
+	persist = 0.7
 }
 
 -- 2D noise for grasses
@@ -133,10 +124,21 @@ local np_tree = {
 local np_grass = {
 	offset = 0,
 	scale = 1,
-	spread = {x=192, y=192, z=192},
+	spread = {x=96, y=96, z=96},
 	seed = -138,
 	octaves = 4,
 	persist = 0.7
+}
+
+-- 3D noise for highland terrain
+
+local np_terrain = {
+	offset = 0,
+	scale = 1,
+	spread = {x=192, y=192, z=192},
+	seed = 5900033,
+	octaves = 4,
+	persist = 0.67
 }
 
 -- 3D noises for tunnels
@@ -155,11 +157,11 @@ local np_webb = {
 	scale = 1,
 	spread = {x=191, y=191, z=191},
 	seed = 33,
-	octaves = 4,
+	octaves = 3,
 	persist = 0.4
 }
 
--- 3D noise for magma tunnels
+-- 3D noises for magma tunnels
 
 local np_webc = {
 	offset = 0,
@@ -190,21 +192,24 @@ local np_fissure = {
 	persist = 0.4
 }
 
--- 3D noise for rock strata inclination
+-- 3D noise for strata layering
 
 local np_strata = {
 	offset = 0,
 	scale = 1,
-	spread = {x=768, y=768, z=768},
+	spread = {x=768, y=16, z=768},
 	seed = 92219,
-	octaves = 2,
-	persist = 0.6
+	octaves = 4,
+	persist = 1
 }
 
 -- Stuff
 
 dofile(minetest.get_modpath("riverdev").."/functions.lua")
 dofile(minetest.get_modpath("riverdev").."/nodes.lua")
+
+local nvals_strata
+local stratanoise = false
 
 -- Mapgen functions
 
@@ -252,15 +257,11 @@ local function riverdev_surface(x, y, z, area, data, y1, vi, viu,
 	local c_grass5 = minetest.get_content_id("default:grass_5")
 	local c_snowblock = minetest.get_content_id("default:snowblock")
 	local c_jungrass = minetest.get_content_id("default:junglegrass")
-	local c_dryshrub = minetest.get_content_id("default:dry_shrub")
 	local c_drygrass = minetest.get_content_id("riverdev:drygrass")
 	local c_goldengrass = minetest.get_content_id("riverdev:goldengrass")
 	local c_icydirt = minetest.get_content_id("riverdev:icydirt")
 	if under[si] == 1 then -- tundra
 		data[viu] = c_icydirt
-		if math.random() < GRACHA * n_grass then
-			data[vi] = c_dryshrub
-		end
 	elseif under[si] == 2 then -- taiga
 		if math.random() < PINCHA * n_tree
 		and n_abspatha > TPFLO and n_abspathb > TPFLO then
@@ -271,9 +272,6 @@ local function riverdev_surface(x, y, z, area, data, y1, vi, viu,
 		end
 	elseif under[si] == 3 then -- dry grassland
 		data[viu] = c_drygrass
-		if math.random() < GRACHA * n_grass then
-			data[vi] = c_dryshrub
-		end
 	elseif under[si] == 4 then -- forest/grassland
 		if math.random() < BOLCHA
 		and n_abspatha > TPFLO and n_abspathb > TPFLO then
@@ -288,20 +286,20 @@ local function riverdev_surface(x, y, z, area, data, y1, vi, viu,
 			data[viu] = c_grass
 			if math.random() < FLOCHA then
 				riverdev_flower(data, vi)
-			elseif math.random() < GRACHA * n_grass then
+			elseif math.random() < GRACHA and n_grass > 0.6 then
 				data[vi] = c_grass5
 			end
 		end
 	elseif under[si] == 5 then -- desert
-		if math.random() < CACCHA * n_grass then
+		if math.random() < CACCHA then
 			riverdev_cactus(x, y, z, area, data)
 		end
-	elseif under[si] == 6 then
+	elseif under[si] == 6 then -- savanna
 		if math.random() < ACACHA * n_tree then
 			riverdev_acaciatree(x, y, z, area, data)
 		else
 			data[viu] = c_drygrass
-			if math.random() < GRACHA * n_grass then
+			if math.random() < GRACHA and n_grass > 0.6 then
 				data[vi] = c_goldengrass
 			end
 		end
@@ -311,7 +309,7 @@ local function riverdev_surface(x, y, z, area, data, y1, vi, viu,
 			riverdev_jungletree(x, y, z, area, data, y1)
 		else
 			data[viu] = c_grass
-			if math.random() < GRACHA then
+			if math.random() < GRACHA and n_grass > 0.6 then
 				data[vi] = c_jungrass
 			end
 		end
@@ -350,6 +348,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_ignore = minetest.get_content_id("ignore")
 	local c_water = minetest.get_content_id("default:water_source")
 	local c_sand = minetest.get_content_id("default:sand")
+	local c_sandstone = minetest.get_content_id("default:sandstone")
 	local c_wood = minetest.get_content_id("default:junglewood")
 	local c_snowblock = minetest.get_content_id("default:snowblock")
 	local c_grass5 = minetest.get_content_id("default:grass_5")
@@ -368,6 +367,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_dirt = minetest.get_content_id("riverdev:dirt")
 	local c_grass = minetest.get_content_id("riverdev:grass")
 	local c_stone = minetest.get_content_id("riverdev:stone")
+	local c_redstone = minetest.get_content_id("riverdev:redstone")
 	local c_path = minetest.get_content_id("riverdev:path")
 	local c_freshwater = minetest.get_content_id("riverdev:freshwater")
 	local c_mixwater = minetest.get_content_id("riverdev:mixwater")
@@ -389,12 +389,12 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local nvals_webb = minetest.get_perlin_map(np_webb, chulensxyz):get3dMap_flat(minposxyz)
 	local nvals_webc = minetest.get_perlin_map(np_webc, chulensxyz):get3dMap_flat(minposxyz)
 	local nvals_webd = minetest.get_perlin_map(np_webd, chulensxyz):get3dMap_flat(minposxyz)
-	local nvals_strata = minetest.get_perlin_map(np_strata, chulensxyz):get3dMap_flat(minposxyz)
 	local nvals_fissure = minetest.get_perlin_map(np_fissure, chulensxyz):get3dMap_flat(minposxyz)
+	local nvals_strata = minetest.get_perlin_map(np_strata, chulensxyz):get3dMap_flat(minposxyz)
 
 	local nvals_mid = minetest.get_perlin_map(np_mid, chulensxz):get2dMap_flat(minposxz)
 	local nvals_base = minetest.get_perlin_map(np_base, chulensxz):get2dMap_flat(minposxz)
-	local nvals_humid = minetest.get_perlin_map(np_base, chulensxz):get2dMap_flat({x=x0-1, y=z0-769})
+	local nvals_humid = minetest.get_perlin_map(np_base, chulensxz):get2dMap_flat({x=x0-1, y=z0+383})
 	local nvals_patha = minetest.get_perlin_map(np_patha, chulensxz):get2dMap_flat(minposxz)
 	local nvals_pathb = minetest.get_perlin_map(np_pathb, chulensxz):get2dMap_flat(minposxz)
 	local nvals_temp = minetest.get_perlin_map(np_temp, chulensxz):get2dMap_flat(minposxz)
@@ -453,17 +453,16 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			n_terrain * n_invbase * n_absmid * n_abspatha ^ 1.5 * n_abspathb ^ 1.5
 			+ densitymid -- actual surface
 			
+			local n_tree = math.min(math.max(nvals_tree[nixz], 0), 1)
+			local n_grass = math.abs(nvals_grass[nixz])
+			local n_strata = nvals_strata[nixyz]
+			local n_temp = nvals_temp[nixz]
+			local n_humid = math.abs(nvals_humid[nixz]) - n_absmid * 0.5 + 0.25
 			local tstone = TSTONE * (1 + grad * 2)
 			local triver = TRIVER * n_absbase
 			local trsand = TRSAND * n_absbase
 			local wood = densitybase > trsand * 2 and density < 0
 			local tobs = TOBS + (density + tstone)
-			local n_strata = nvals_strata[nixyz]
-			local densitystrata = grad + n_strata * 0.5
-			local n_temp = nvals_temp[nixz]
-			local n_humid = math.abs(nvals_humid[nixz]) - n_absmid * 0.5 + 0.25
-			local n_tree = math.min(math.max(nvals_tree[nixz], 0), 1)
-			local n_grass = math.min(math.max(nvals_grass[nixz], 0), 1)
 
 			if chunkxz and y == y0 - 1 then -- overgeneration, initialise tables
 				under[si] = 0
@@ -486,6 +485,29 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					end
 				end
 			elseif chunkxz and y >= y0 and y <= y1 then -- chunk generation
+				local biome = 0
+				if n_temp < LOTET then
+					if n_humid < LOHUT then -- tundra
+						biome = 1
+					else -- taiga
+						biome = 2
+					end
+				elseif n_temp > HITET then
+					if n_humid < LOHUT then -- desert
+						biome = 5
+					elseif n_humid > HIHUT then -- rainforest
+						biome = 7
+					else -- savanna
+						biome = 6
+					end
+				else
+					if n_humid < LOHUT then -- dry grassland
+						biome = 3
+					else -- temperate forest / grassland
+						biome = 4
+					end
+				end
+
 				if density >= -tstone -- magma/obsidian network
 				and ((n_abswebc <= TOBS and n_abswebd <= TOBS)
 				or (density < tstone and n_abswebc <= tobs and n_abswebd <= tobs)) then
@@ -503,7 +525,11 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				elseif density >= tstone and (novoid
 				or (density < tstone * 1.5
 				and (y <= YWATER or densitybase >= triver))) then
-					if math.random() < ORECHA and density > TSTONE then -- ores
+					if n_strata > 0.7 then
+						data[vi] = c_sandstone -- redstone layer
+					elseif biome == 5 then
+						data[vi] = c_redstone -- redstone layer
+					elseif math.random() < ORECHA and density > TSTONE then -- ores
 						local osel = math.random(24)
 						if osel == 24 then
 							data[vi] = c_stodiam
@@ -539,33 +565,27 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					if y <= YSAND or densitybase >= trsand then
 						data[vi] = c_sand
 						under[si] = 8
-					elseif n_temp < LOTET then
-						if n_humid < MIDHUT then -- tundra
-							data[vi] = c_permafrost
-							under[si] = 1
-						else -- taiga
-							data[vi] = c_dirt
-							under[si] = 2
-						end
-					elseif n_temp > HITET then
-						if n_humid < LOHUT then -- desert
-							data[vi] = c_desand
-							under[si] = 5
-						elseif n_humid > HIHUT then -- rainforest
-							data[vi] = c_dirt
-							under[si] = 7
-						else -- savanna
-							data[vi] = c_dirt
-							under[si] = 6
-						end
-					else
-						if n_humid < MIDHUT then -- dry grassland
-							data[vi] = c_dirt
-							under[si] = 3
-						else -- deciduous forest / grassland
-							data[vi] = c_dirt
-							under[si] = 4
-						end
+					elseif biome == 1 then -- tundra
+						data[vi] = c_permafrost
+						under[si] = 1
+					elseif biome == 2 then -- taiga
+						data[vi] = c_dirt
+						under[si] = 2
+					elseif biome == 3 then -- dry grassland
+						data[vi] = c_dirt
+						under[si] = 3
+					elseif biome == 4 then -- forest / grassland
+						data[vi] = c_dirt
+						under[si] = 4
+					elseif biome == 5 then -- desert
+						data[vi] = c_desand
+						under[si] = 5
+					elseif biome == 6 then -- savanna
+						data[vi] = c_dirt
+						under[si] = 6
+					elseif biome == 7 then -- rainforest
+						data[vi] = c_dirt
+						under[si] = 7
 					end
 				elseif y <= YWATER and density < tstone
 				and nodid ~= c_stone then -- sea water

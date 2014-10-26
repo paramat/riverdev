@@ -7,6 +7,15 @@ minetest.register_node("riverdev:stone", {
 	sounds = default.node_sound_stone_defaults(),
 })
 
+minetest.register_node("riverdev:redstone", {
+	description = "Red Stone",
+	tiles = {"default_desert_stone.png"},
+	is_ground_content = false,
+	groups = {cracky=3},
+	drop = "default:desert_cobble",
+	sounds = default.node_sound_stone_defaults(),
+})
+
 minetest.register_node("riverdev:dirt", {
 	description = "Dirt",
 	tiles = {"default_dirt.png"},
