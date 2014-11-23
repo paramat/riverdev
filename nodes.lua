@@ -183,7 +183,6 @@ minetest.register_node("riverdev:jungling", {
 	sounds = default.node_sound_leaves_defaults(),
 })
 
-
 minetest.register_node("riverdev:acaciatree", {
 	description = "Acacia tree",
 	tiles = {"riverdev_acaciatreetop.png", "riverdev_acaciatreetop.png", "riverdev_acaciatree.png"},
