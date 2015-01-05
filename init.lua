@@ -1,11 +1,13 @@
--- riverdev 0.6.1 by paramat
+-- riverdev 0.7.0 by paramat
 -- For latest stable Minetest and back to 0.4.8
 -- Depends default
 -- License: code WTFPL
 
--- more tunnels, now with intersections
--- ores located by strata noise
--- 2 terrain noises in phi ratio
+-- add bucket of fresh water
+-- flags="nolight" replaces set_lighting
+-- delete 2D noisemap z component
+-- create noise objects once only
+-- raise bridges
 
 -- Parameters
 
@@ -17,12 +19,12 @@ local YTER = -64 -- Deepest seabed y
 local YPINE = 47 -- Pines above this y
 
 local TERSCA = 512 -- Terrain vertical scale in nodes
-local BASAMP = 0.2 -- Base amplitude relative to 3D noise amplitude. Ridge network structure
+local BASAMP = 0.3 -- Base amplitude relative to 3D noise amplitude. Ridge network structure
 local MIDAMP = 0.05 -- Mid amplitude relative to 3D noise amplitude. River valley structure
 
 local TSTONE = 0.02 -- Maximum depth of stone under surface
 local TRIVER = -0.018 -- River depth
-local TRSAND = -0.02 -- Depth of river sand
+local TRSAND = -0.022 -- Depth of river sand
 local TPFLO = 0.02 -- Width of flora clearing around paths
 local TTUN = 0.02 -- Tunnel width
 local TFIS = 0.004 -- Fissure width
@@ -220,6 +222,27 @@ local np_strata = {
 
 -- Stuff
 
+-- initialize 3D and 2D noise objects to nil
+
+local nobj_terrain    = nil
+local nobj_terrainalt = nil
+local nobj_temp       = nil
+local nobj_weba       = nil
+local nobj_webb       = nil
+local nobj_webc       = nil
+local nobj_webd       = nil
+local nobj_webe       = nil
+local nobj_fissure    = nil
+local nobj_strata     = nil
+	
+local nobj_mid        = nil
+local nobj_base       = nil
+local nobj_humid      = nil
+local nobj_patha      = nil
+local nobj_pathb      = nil
+local nobj_tree       = nil
+local nobj_grass      = nil
+
 dofile(minetest.get_modpath("riverdev").."/functions.lua")
 dofile(minetest.get_modpath("riverdev").."/nodes.lua")
 
@@ -396,31 +419,47 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	--local emerarea = emerlen ^ 2 -- voxelmanip emerged volume face area
 	local chulensxyz = {x=overlen, y=sidelen+2, z=overlen}
 	local minposxyz = {x=x0-1, y=y0-1, z=z0-1}
-	local chulensxz = {x=overlen, y=overlen, z=sidelen} -- different because here x=x, y=z
+	local chulensxz = {x=overlen, y=overlen} -- different because here x=x, y=z
 	local minposxz = {x=x0-1, y=z0-1}
-	
-	local nvals_terrain = minetest.get_perlin_map(np_terrain, chulensxyz):get3dMap_flat(minposxyz)
-	local nvals_terrainalt = minetest.get_perlin_map(np_terrainalt, chulensxyz):get3dMap_flat(minposxyz)
-	local nvals_temp = minetest.get_perlin_map(np_temp, chulensxyz):get3dMap_flat(minposxyz)
-	local nvals_weba = minetest.get_perlin_map(np_weba, chulensxyz):get3dMap_flat(minposxyz)
-	local nvals_webe = minetest.get_perlin_map(np_webe, chulensxyz):get3dMap_flat(minposxyz)
-	local nvals_webb = minetest.get_perlin_map(np_webb, chulensxyz):get3dMap_flat(minposxyz)
-	local nvals_webc = minetest.get_perlin_map(np_webc, chulensxyz):get3dMap_flat(minposxyz)
-	local nvals_webd = minetest.get_perlin_map(np_webd, chulensxyz):get3dMap_flat(minposxyz)
-	local nvals_fissure = minetest.get_perlin_map(np_fissure, chulensxyz):get3dMap_flat(minposxyz)
-	local nvals_strata = minetest.get_perlin_map(np_strata, chulensxyz):get3dMap_flat(minposxyz)
+	-- 3D and 2D noise objects created once on first mapchunk generation only
+	nobj_terrain    = nobj_terrain    or minetest.get_perlin_map(np_terrain, chulensxyz)
+	nobj_terrainalt = nobj_terrainalt or minetest.get_perlin_map(np_terrainalt, chulensxyz)
+	nobj_temp       = nobj_temp       or minetest.get_perlin_map(np_temp, chulensxyz)
+	nobj_weba       = nobj_weba       or minetest.get_perlin_map(np_weba, chulensxyz)
+	nobj_webb       = nobj_webb       or minetest.get_perlin_map(np_webb, chulensxyz)
+	nobj_webc       = nobj_webc       or minetest.get_perlin_map(np_webc, chulensxyz)
+	nobj_webd       = nobj_webd       or minetest.get_perlin_map(np_webd, chulensxyz)
+	nobj_webe       = nobj_webe       or minetest.get_perlin_map(np_webe, chulensxyz)
+	nobj_fissure    = nobj_fissure    or minetest.get_perlin_map(np_fissure, chulensxyz)
+	nobj_strata     = nobj_strata     or minetest.get_perlin_map(np_strata, chulensxyz)
 
-	local nvals_mid = minetest.get_perlin_map(np_mid, chulensxz):get2dMap_flat(minposxz)
-	local nvals_base = minetest.get_perlin_map(np_base, chulensxz):get2dMap_flat(minposxz)
-	local nvals_humid = minetest.get_perlin_map(np_base, chulensxz):get2dMap_flat({x=x0-1, y=z0+383})
-	local nvals_patha = minetest.get_perlin_map(np_patha, chulensxz):get2dMap_flat(minposxz)
-	local nvals_pathb = minetest.get_perlin_map(np_pathb, chulensxz):get2dMap_flat(minposxz)
-	local nvals_tree = minetest.get_perlin_map(np_tree, chulensxz):get2dMap_flat(minposxz)
-	local nvals_grass = minetest.get_perlin_map(np_grass, chulensxz):get2dMap_flat(minposxz)
-	
-	--local noiset = math.ceil((os.clock() - t0) * 1000)
-	--print ("[riverdev] noise "..noiset.." ms")
+	nobj_mid        = nobj_mid        or minetest.get_perlin_map(np_mid, chulensxz)
+	nobj_base       = nobj_base       or minetest.get_perlin_map(np_base, chulensxz)
+	nobj_humid      = nobj_humid      or minetest.get_perlin_map(np_base, chulensxz)
+	nobj_patha      = nobj_patha      or minetest.get_perlin_map(np_patha, chulensxz)
+	nobj_pathb      = nobj_pathb      or minetest.get_perlin_map(np_pathb, chulensxz)
+	nobj_tree       = nobj_tree       or minetest.get_perlin_map(np_tree, chulensxz)
+	nobj_grass      = nobj_grass      or minetest.get_perlin_map(np_grass, chulensxz)
+	-- 3D and 2D perlinmaps created per mapchunk
+	local nvals_terrain    = nobj_terrain:get3dMap_flat(minposxyz)
+	local nvals_terrainalt = nobj_terrainalt:get3dMap_flat(minposxyz)
+	local nvals_temp       = nobj_temp:get3dMap_flat(minposxyz)
+	local nvals_weba       = nobj_weba:get3dMap_flat(minposxyz)
+	local nvals_webb       = nobj_webb:get3dMap_flat(minposxyz)
+	local nvals_webc       = nobj_webc:get3dMap_flat(minposxyz)
+	local nvals_webd       = nobj_webd:get3dMap_flat(minposxyz)
+	local nvals_webe       = nobj_webe:get3dMap_flat(minposxyz)
+	local nvals_fissure    = nobj_fissure:get3dMap_flat(minposxyz)
+	local nvals_strata     = nobj_strata:get3dMap_flat(minposxyz)
 
+	local nvals_mid        = nobj_mid:get2dMap_flat(minposxz)
+	local nvals_base       = nobj_base:get2dMap_flat(minposxz)
+	local nvals_humid      = nobj_base:get2dMap_flat({x=x0-1, y=z0+383})
+	local nvals_patha      = nobj_patha:get2dMap_flat(minposxz)
+	local nvals_pathb      = nobj_pathb:get2dMap_flat(minposxz)
+	local nvals_tree       = nobj_tree:get2dMap_flat(minposxz)
+	local nvals_grass      = nobj_grass:get2dMap_flat(minposxz)
+	-- ungenerated chunk below?
 	local viu = area:index(x0, y0-1, z0)
 	local ungen = data[viu] == c_ignore
 	
@@ -689,7 +728,6 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	end
 	
 	vm:set_data(data)
-	vm:set_lighting({day=0, night=0})
 	vm:calc_lighting()
 	vm:write_to_map(data)
 	vm:update_liquids()

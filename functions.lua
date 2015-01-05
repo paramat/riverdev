@@ -380,7 +380,7 @@ minetest.register_abm({
 -- Set mapgen parameters
 
 minetest.register_on_mapgen_init(function(mgparams)
-	minetest.set_mapgen_params({mgname="singlenode"})
+	minetest.set_mapgen_params({mgname="singlenode", flags="nolight"})
 end)
 
 -- Spawn player. Only works with chunksize = 5 mapblocks

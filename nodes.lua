@@ -485,3 +485,13 @@ stairs.register_stair_and_slab(
 	default.node_sound_wood_defaults()
 )
 
+-- Buckets
+
+bucket.register_liquid(
+	"riverdev:freshwater",
+	"riverdev:freshwaterflow",
+	"riverdev:bucket_freshwater",
+	"riverdev_bucketfreshwater.png",
+	"Fresh Water Bucket"
+)
+
