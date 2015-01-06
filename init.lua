@@ -1,13 +1,7 @@
--- riverdev 0.7.0 by paramat
--- For latest stable Minetest and back to 0.4.8
--- Depends default
--- License: code WTFPL
-
--- add bucket of fresh water
--- flags="nolight" replaces set_lighting
--- delete 2D noisemap z component
--- create noise objects once only
--- raise bridges
+-- riverdev 0.7.1
+-- delete unnecessary nobj_humid
+-- c_snow to c_snowblock
+-- z=1 for z component of 2D noisemap size
 
 -- Parameters
 
@@ -237,7 +231,6 @@ local nobj_strata     = nil
 	
 local nobj_mid        = nil
 local nobj_base       = nil
-local nobj_humid      = nil
 local nobj_patha      = nil
 local nobj_pathb      = nil
 local nobj_tree       = nil
@@ -419,7 +412,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	--local emerarea = emerlen ^ 2 -- voxelmanip emerged volume face area
 	local chulensxyz = {x=overlen, y=sidelen+2, z=overlen}
 	local minposxyz = {x=x0-1, y=y0-1, z=z0-1}
-	local chulensxz = {x=overlen, y=overlen} -- different because here x=x, y=z
+	local chulensxz = {x=overlen, y=overlen, z=1} -- different because here x=x, y=z
 	local minposxz = {x=x0-1, y=z0-1}
 	-- 3D and 2D noise objects created once on first mapchunk generation only
 	nobj_terrain    = nobj_terrain    or minetest.get_perlin_map(np_terrain, chulensxyz)
@@ -435,7 +428,6 @@ minetest.register_on_generated(function(minp, maxp, seed)
 
 	nobj_mid        = nobj_mid        or minetest.get_perlin_map(np_mid, chulensxz)
 	nobj_base       = nobj_base       or minetest.get_perlin_map(np_base, chulensxz)
-	nobj_humid      = nobj_humid      or minetest.get_perlin_map(np_base, chulensxz)
 	nobj_patha      = nobj_patha      or minetest.get_perlin_map(np_patha, chulensxz)
 	nobj_pathb      = nobj_pathb      or minetest.get_perlin_map(np_pathb, chulensxz)
 	nobj_tree       = nobj_tree       or minetest.get_perlin_map(np_tree, chulensxz)
@@ -669,7 +661,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				elseif density < 0 and y > YWATER
 				and under[si] ~= 0 -- detect surface, place surface nodes
 				and nodid ~= c_stone
-				and nodid ~= c_snow and nodidu ~= c_snow
+				and nodid ~= c_snowblock and nodidu ~= c_snowblock
 				and nodid ~= c_path and nodidu ~= c_path
 				and nodid ~= c_wood and nodidu ~= c_wood then
 
@@ -703,7 +695,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				elseif density < 0 and y > YWATER
 				and under[si] ~= 0 -- detect surface, place surface nodes
 				and nodid ~= c_stone
-				and nodid ~= c_snow and nodidu ~= c_snow
+				and nodid ~= c_snowblock and nodidu ~= c_snowblock
 				and nodid ~= c_path and nodidu ~= c_path
 				and nodid ~= c_wood and nodidu ~= c_wood then
 
