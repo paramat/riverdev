@@ -1,8 +1,3 @@
--- riverdev 0.7.1
--- delete unnecessary nobj_humid
--- c_snow to c_snowblock
--- z=1 for z component of 2D noisemap size
-
 -- Parameters
 
 local YMIN = -33000 -- Y limits of realm generation

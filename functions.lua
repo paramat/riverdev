@@ -396,17 +396,17 @@ function spawnplayer(player)
 	local np_terrain = {
 		offset = 0,
 		scale = 1,
-		spread = {x=192, y=192, z=192},
+		spread = {x=384, y=192, z=384},
 		seed = 5900033,
-		octaves = 4,
+		octaves = 5,
 		persist = 0.67
 	}
 	local np_mid = {
 		offset = 0,
 		scale = 1,
-		spread = {x=768, y=768, z=768},
+		spread = {x=1536, y=1536, z=1536},
 		seed = 85546,
-		octaves = 5,
+		octaves = 6,
 		persist = 0.4
 	}
 	local np_base = {
@@ -414,7 +414,7 @@ function spawnplayer(player)
 		scale = 1,
 		spread = {x=3072, y=3072, z=3072},
 		seed = -990054,
-		octaves = 2,
+		octaves = 3,
 		persist = 0.4
 	}
 	local np_patha = {
@@ -449,7 +449,7 @@ function spawnplayer(player)
 		local sidelen = 80
 		local chulensxyz = {x=sidelen, y=sidelen, z=sidelen}
 		local minposxyz = {x=x0, y=y0, z=z0}
-		local chulensxz = {x=sidelen, y=sidelen, z=sidelen}
+		local chulensxz = {x=sidelen, y=sidelen, z=1}
 		local minposxz = {x=x0, y=z0}
 	
 		local nvals_terrain = minetest.get_perlin_map(np_terrain, chulensxyz):get3dMap_flat(minposxyz)
