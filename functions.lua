@@ -290,10 +290,10 @@ minetest.register_abm({
 		local y = pos.y
 		local z = pos.z
 		local vm = minetest.get_voxel_manip()
-		local pos1 = {x=x-2, y=y-2, z=z-2}
-		local pos2 = {x=x+2, y=y+5, z=z+2}
+		local pos1 = {x = x - 2, y = y - 2, z = z - 2}
+		local pos2 = {x = x + 2, y = y + 5, z = z + 2}
 		local emin, emax = vm:read_from_map(pos1, pos2)
-		local area = VoxelArea:new({MinEdge=emin, MaxEdge=emax})
+		local area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
 		local data = vm:get_data()
 
 		riverdev_appletree(x, y, z, area, data)
@@ -315,10 +315,10 @@ minetest.register_abm({
 		local y = pos.y
 		local z = pos.z
 		local vm = minetest.get_voxel_manip()
-		local pos1 = {x=x-2, y=y-4, z=z-2}
-		local pos2 = {x=x+2, y=y+17, z=z+2}
+		local pos1 = {x = x - 2, y = y - 4, z = z - 2}
+		local pos2 = {x = x + 2, y = y + 17, z = z + 2}
 		local emin, emax = vm:read_from_map(pos1, pos2)
-		local area = VoxelArea:new({MinEdge=emin, MaxEdge=emax})
+		local area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
 		local data = vm:get_data()
 
 		riverdev_pinetree(x, y, z, area, data)
@@ -340,10 +340,10 @@ minetest.register_abm({
 		local y = pos.y
 		local z = pos.z
 		local vm = minetest.get_voxel_manip()
-		local pos1 = {x=x-2, y=y-5, z=z-2}
-		local pos2 = {x=x+2, y=y+23, z=z+2}
+		local pos1 = {x = x - 2, y = y - 5, z = z - 2}
+		local pos2 = {x = x + 2, y = y + 23, z = z + 2}
 		local emin, emax = vm:read_from_map(pos1, pos2)
-		local area = VoxelArea:new({MinEdge=emin, MaxEdge=emax})
+		local area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
 		local data = vm:get_data()
 		-- check temp/humid
 		riverdev_jungletree(x, y, z, area, data)
@@ -365,10 +365,10 @@ minetest.register_abm({
 		local y = pos.y
 		local z = pos.z
 		local vm = minetest.get_voxel_manip()
-		local pos1 = {x=x-4, y=y-3, z=z-4}
-		local pos2 = {x=x+4, y=y+7, z=z+4}
+		local pos1 = {x = x - 4, y = y - 3, z = z - 4}
+		local pos2 = {x = x + 4, y = y + 7, z = z + 4}
 		local emin, emax = vm:read_from_map(pos1, pos2)
-		local area = VoxelArea:new({MinEdge=emin, MaxEdge=emax})
+		local area = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
 		local data = vm:get_data()
 		riverdev_acaciatree(x, y, z, area, data)
 		vm:set_data(data)
@@ -376,148 +376,3 @@ minetest.register_abm({
 		vm:update_map()
 	end,
 })
-
--- Set mapgen parameters
-
-minetest.register_on_mapgen_init(function(mgparams)
-	minetest.set_mapgen_params({mgname="singlenode", flags="nolight"})
-end)
-
--- Spawn player. Only works with chunksize = 5 mapblocks
-
-function spawnplayer(player)
-	local PSCA = 16 -- Player scatter. Maximum distance in chunks (80 nodes) of player spawn from (0, 0, 0)
-	local YWATER = 1
-	local YTER = -64 -- Deepest seabed y
-	local TERSCA = 512 -- Terrain vertical scale in nodes
-	local BASAMP = 0.3 -- Base amplitude relative to 3D noise amplitude. Ridge network structure
-	local MIDAMP = 0.05 -- Mid amplitude relative to 3D noise amplitude. River valley structure
-
-	local np_terrain = {
-		offset = 0,
-		scale = 1,
-		spread = {x=384, y=192, z=384},
-		seed = 5900033,
-		octaves = 5,
-		persist = 0.67
-	}
-	local np_mid = {
-		offset = 0,
-		scale = 1,
-		spread = {x=1536, y=1536, z=1536},
-		seed = 85546,
-		octaves = 6,
-		persist = 0.4
-	}
-	local np_base = {
-		offset = 0,
-		scale = 1,
-		spread = {x=3072, y=3072, z=3072},
-		seed = -990054,
-		octaves = 3,
-		persist = 0.4
-	}
-	local np_patha = {
-		offset = 0,
-		scale = 1,
-		spread = {x=768, y=768, z=768},
-		seed = 7000023,
-		octaves = 4,
-		persist = 0.4
-	}
-	local np_pathb = {
-		offset = 0,
-		scale = 1,
-		spread = {x=768, y=768, z=768},
-		seed = 23,
-		octaves = 4,
-		persist = 0.4
-	}
-
-	local xsp
-	local ysp
-	local zsp
-	for chunk = 1, 128 do
-		print ("[riverdev] searching for spawn "..chunk)
-		local x0 = 80 * math.random(-PSCA, PSCA) - 32
-		local z0 = 80 * math.random(-PSCA, PSCA) - 32
-		local y0 = 80 * math.floor((YWATER + 32) / 80) - 32
-		local x1 = x0 + 79
-		local z1 = z0 + 79
-		local y1 = y0 + 79
-
-		local sidelen = 80
-		local chulensxyz = {x=sidelen, y=sidelen, z=sidelen}
-		local minposxyz = {x=x0, y=y0, z=z0}
-		local chulensxz = {x=sidelen, y=sidelen, z=1}
-		local minposxz = {x=x0, y=z0}
-	
-		local nvals_terrain = minetest.get_perlin_map(np_terrain, chulensxyz):get3dMap_flat(minposxyz)
-
-		local nvals_mid = minetest.get_perlin_map(np_mid, chulensxz):get2dMap_flat(minposxz)
-		local nvals_base = minetest.get_perlin_map(np_base, chulensxz):get2dMap_flat(minposxz)
-		local nvals_patha = minetest.get_perlin_map(np_patha, chulensxz):get2dMap_flat(minposxz)
-		local nvals_pathb = minetest.get_perlin_map(np_pathb, chulensxz):get2dMap_flat(minposxz)
-
-		local nixyz = 1
-		local nixz = 1
-		for z = z0, z1 do
-			for y = y0, y1 do
-				for x = x0, x1 do
-					local n_patha = nvals_patha[nixz]
-					local n_abspatha = math.abs(n_patha)
-					local n_pathb = nvals_pathb[nixz]
-					local n_abspathb = math.abs(n_pathb)
-
-					local n_terrain = (nvals_terrain[nixyz] + 2) / 2
-					local n_absmid = (math.abs(nvals_mid[nixz])) ^ 0.8
-					local n_absbase = (math.abs(nvals_base[nixz])) ^ 0.8
-					local n_invbase = math.max(1 - n_absbase, 0)
-
-					local grad = (YTER - y) / TERSCA
-					local densitybase = n_invbase * BASAMP + grad
-					local densitymid = n_absmid * MIDAMP + densitybase
-					local density = n_terrain * n_invbase * n_absmid * n_abspatha ^ 1.5 * n_abspathb ^ 1.5
-					+ densitymid
-
-					if y >= YWATER and density > -0.01 and density < 0 then
-						ysp = y + 1
-						xsp = x
-						zsp = z
-						break
-					end
-					nixz = nixz + 1
-					nixyz = nixyz + 1
-				end
-				if ysp then
-					break
-				end
-				nixz = nixz - 80
-			end
-			if ysp then
-				break
-			end
-			nixz = nixz + 80
-		end
-		if ysp then
-			break
-		end
-	end
-	if ysp then
-		print ("[riverdev] spawn player ("..xsp.." "..ysp.." "..zsp..")")
-		player:setpos({x=xsp, y=ysp, z=zsp})
-	else	
-		print ("[riverdev] no suitable spawn found")
-		player:setpos({x=0, y=2, z=0})
-	end
-end
-
-minetest.register_on_newplayer(function(player)
-	spawnplayer(player)
-end)
-
-minetest.register_on_respawnplayer(function(player)
-	spawnplayer(player)
-	return true
-end)
-

@@ -1,7 +1,8 @@
 -- Parameters
 
-local YMIN = -33000 -- Y limits of realm generation
-local YMAX = 1024
+local PSCA = 16 -- Player scatter. Maximum distance in chunks (80 nodes)
+				-- of player spawn from (0, 0, 0)
+
 local YWATER = 1 -- Water surface y
 local YSAND = 4 -- Top of beach y
 local YTER = -64 -- Deepest seabed y
@@ -44,7 +45,7 @@ local HIHUT = 0.6 -- High ^
 local np_mid = {
 	offset = 0,
 	scale = 1,
-	spread = {x=1536, y=1536, z=1536},
+	spread = {x = 1536, y = 1536, z = 1536},
 	seed = 85546,
 	octaves = 6,
 	persist = 0.4
@@ -55,7 +56,7 @@ local np_mid = {
 local np_base = {
 	offset = 0,
 	scale = 1,
-	spread = {x=3072, y=3072, z=3072},
+	spread = {x = 3072, y = 3072, z = 3072},
 	seed = -990054,
 	octaves = 3,
 	persist = 0.4
@@ -66,7 +67,7 @@ local np_base = {
 local np_patha = {
 	offset = 0,
 	scale = 1,
-	spread = {x=768, y=768, z=768},
+	spread = {x = 768, y = 768, z = 768},
 	seed = 7000023,
 	octaves = 4,
 	persist = 0.4
@@ -77,7 +78,7 @@ local np_patha = {
 local np_pathb = {
 	offset = 0,
 	scale = 1,
-	spread = {x=768, y=768, z=768},
+	spread = {x = 768, y = 768, z = 768},
 	seed = 23,
 	octaves = 4,
 	persist = 0.4
@@ -88,7 +89,7 @@ local np_pathb = {
 local np_tree = {
 	offset = 0,
 	scale = 1,
-	spread = {x=384, y=384, z=384},
+	spread = {x = 384, y = 384, z = 384},
 	seed = 133338,
 	octaves = 4,
 	persist = 0.7
@@ -99,7 +100,7 @@ local np_tree = {
 local np_grass = {
 	offset = 0,
 	scale = 1,
-	spread = {x=96, y=96, z=96},
+	spread = {x = 96, y = 96, z = 96},
 	seed = -138,
 	octaves = 4,
 	persist = 0.7
@@ -110,7 +111,7 @@ local np_grass = {
 local np_terrain = {
 	offset = 0,
 	scale = 1,
-	spread = {x=384, y=192, z=384},
+	spread = {x = 384, y = 192, z = 384},
 	seed = 5900033,
 	octaves = 5,
 	persist = 0.67
@@ -121,7 +122,7 @@ local np_terrain = {
 local np_terrainalt = {
 	offset = 0,
 	scale = 1,
-	spread = {x=311, y=155, z=311},
+	spread = {x = 311, y = 155, z = 311},
 	seed = -5933,
 	octaves = 5,
 	persist = 0.67
@@ -132,7 +133,7 @@ local np_terrainalt = {
 local np_temp = {
 	offset = 0,
 	scale = 1,
-	spread = {x=3072, y=3072, z=3072},
+	spread = {x = 3072, y = 3072, z = 3072},
 	seed = 18882,
 	octaves = 3,
 	persist = 0.4
@@ -143,7 +144,7 @@ local np_temp = {
 local np_weba = {
 	offset = 0,
 	scale = 1,
-	spread = {x=192, y=192, z=192},
+	spread = {x = 192, y = 192, z = 192},
 	seed = 5900033,
 	octaves = 3,
 	persist = 0.4
@@ -152,7 +153,7 @@ local np_weba = {
 local np_webb = {
 	offset = 0,
 	scale = 1,
-	spread = {x=191, y=191, z=191},
+	spread = {x = 191, y = 191, z = 191},
 	seed = 33,
 	octaves = 3,
 	persist = 0.4
@@ -161,7 +162,7 @@ local np_webb = {
 local np_webe = {
 	offset = 0,
 	scale = 1,
-	spread = {x=190, y=190, z=190},
+	spread = {x = 190, y = 190, z = 190},
 	seed = 3900011,
 	octaves = 3,
 	persist = 0.4
@@ -172,7 +173,7 @@ local np_webe = {
 local np_webc = {
 	offset = 0,
 	scale = 1,
-	spread = {x=384, y=384, z=384},
+	spread = {x = 384, y = 384, z = 384},
 	seed = -181,
 	octaves = 4,
 	persist = 0.4
@@ -181,7 +182,7 @@ local np_webc = {
 local np_webd = {
 	offset = 0,
 	scale = 1,
-	spread = {x=383, y=383, z=383},
+	spread = {x = 383, y = 383, z = 383},
 	seed = 1022081,
 	octaves = 4,
 	persist = 0.4
@@ -192,7 +193,7 @@ local np_webd = {
 local np_fissure = {
 	offset = 0,
 	scale = 1,
-	spread = {x=768, y=1536, z=768},
+	spread = {x = 768, y = 1536, z = 768},
 	seed = -2332339,
 	octaves = 6,
 	persist = 0.5
@@ -203,36 +204,25 @@ local np_fissure = {
 local np_strata = {
 	offset = 0,
 	scale = 1,
-	spread = {x=3072, y=48, z=3072},
+	spread = {x = 3072, y = 48, z = 3072},
 	seed = 92219,
 	octaves = 4,
 	persist = 1
 }
 
--- Stuff
 
--- initialize 3D and 2D noise objects to nil
+-- Do files
 
-local nobj_terrain    = nil
-local nobj_terrainalt = nil
-local nobj_temp       = nil
-local nobj_weba       = nil
-local nobj_webb       = nil
-local nobj_webc       = nil
-local nobj_webd       = nil
-local nobj_webe       = nil
-local nobj_fissure    = nil
-local nobj_strata     = nil
-	
-local nobj_mid        = nil
-local nobj_base       = nil
-local nobj_patha      = nil
-local nobj_pathb      = nil
-local nobj_tree       = nil
-local nobj_grass      = nil
+dofile(minetest.get_modpath("riverdev") .. "/functions.lua")
+dofile(minetest.get_modpath("riverdev") .. "/nodes.lua")
 
-dofile(minetest.get_modpath("riverdev").."/functions.lua")
-dofile(minetest.get_modpath("riverdev").."/nodes.lua")
+
+-- Set mapgen parameters
+
+minetest.register_on_mapgen_init(function(mgparams)
+	minetest.set_mapgen_params({mgname="singlenode", flags="nolight"})
+end)
+
 
 -- Mapgen functions
 
@@ -244,8 +234,8 @@ local function riverdev_pathbrush(x, y, z, area, data,
 	local c_wood = minetest.get_content_id("default:junglewood")
 	local c_snow = minetest.get_content_id("default:snow")
 	if wood and math.random() < 0.2 then
-		local vi = area:index(x, y-2, z)
-		for j = y-2, y0-16, -1 do -- use mapblock shell
+		local vi = area:index(x, y - 2, z)
+		for j = y - 2, y0 - 16, -1 do -- use mapblock shell
 			if data[vi] == c_stone then
 				break
 			else
@@ -255,7 +245,7 @@ local function riverdev_pathbrush(x, y, z, area, data,
 		end
 	end
 	for k = -1, 1 do
-		local vi = area:index(x-1, y-1, z+k)
+		local vi = area:index(x - 1, y - 1, z + k)
 		local via = vi + emerlen
 		for i = -1, 1 do
 			if wood then
@@ -349,13 +339,31 @@ local function riverdev_surface(x, y, z, area, data, y1, vi, viu,
 	end
 end
 
+
+-- initialize noise objects to nil
+
+local nobj_terrain    = nil
+local nobj_terrainalt = nil
+local nobj_temp       = nil
+local nobj_weba       = nil
+local nobj_webb       = nil
+local nobj_webc       = nil
+local nobj_webd       = nil
+local nobj_webe       = nil
+local nobj_fissure    = nil
+local nobj_strata     = nil
+	
+local nobj_mid        = nil
+local nobj_base       = nil
+local nobj_patha      = nil
+local nobj_pathb      = nil
+local nobj_tree       = nil
+local nobj_grass      = nil
+
+
 -- On generated function
 
 minetest.register_on_generated(function(minp, maxp, seed)
-	if minp.y < YMIN or maxp.y > YMAX then
-		return
-	end
-
 	local t0 = os.clock()
 	local x1 = maxp.x
 	local y1 = maxp.y
@@ -363,8 +371,6 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local x0 = minp.x
 	local y0 = minp.y
 	local z0 = minp.z
-	
-	print ("[riverdev] generate chunk minp ("..x0.." "..y0.." "..z0..")")
 	
 	local vm, emin, emax = minetest.get_mapgen_object("voxelmanip")
 	local area = VoxelArea:new{MinEdge=emin, MaxEdge=emax}
@@ -405,10 +411,10 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local overlen = sidelen + 1 -- perlinmap overgeneration horizontal side length
 	local emerlen = sidelen + 32 -- voxelmanip emerged volume edge length
 	--local emerarea = emerlen ^ 2 -- voxelmanip emerged volume face area
-	local chulensxyz = {x=overlen, y=sidelen+2, z=overlen}
-	local minposxyz = {x=x0-1, y=y0-1, z=z0-1}
-	local chulensxz = {x=overlen, y=overlen, z=1} -- different because here x=x, y=z
-	local minposxz = {x=x0-1, y=z0-1}
+	local chulensxyz = {x = overlen, y = sidelen + 2, z = overlen}
+	local minposxyz = {x = x0 - 1, y = y0 - 1, z = z0 - 1}
+	local chulensxz = {x = overlen, y = overlen, z = 1} -- different because here x=x, y=z
+	local minposxz = {x = x0 - 1, y = z0 - 1}
 	-- 3D and 2D noise objects created once on first mapchunk generation only
 	nobj_terrain    = nobj_terrain    or minetest.get_perlin_map(np_terrain, chulensxyz)
 	nobj_terrainalt = nobj_terrainalt or minetest.get_perlin_map(np_terrainalt, chulensxyz)
@@ -441,13 +447,13 @@ minetest.register_on_generated(function(minp, maxp, seed)
 
 	local nvals_mid        = nobj_mid:get2dMap_flat(minposxz)
 	local nvals_base       = nobj_base:get2dMap_flat(minposxz)
-	local nvals_humid      = nobj_base:get2dMap_flat({x=x0-1, y=z0+383})
+	local nvals_humid      = nobj_base:get2dMap_flat({x = x0 - 1, y = z0 + 383})
 	local nvals_patha      = nobj_patha:get2dMap_flat(minposxz)
 	local nvals_pathb      = nobj_pathb:get2dMap_flat(minposxz)
 	local nvals_tree       = nobj_tree:get2dMap_flat(minposxz)
 	local nvals_grass      = nobj_grass:get2dMap_flat(minposxz)
 	-- ungenerated chunk below?
-	local viu = area:index(x0, y0-1, z0)
+	local viu = area:index(x0, y0 - 1, z0)
 	local ungen = data[viu] == c_ignore
 	
 	local nixyz = 1
@@ -457,7 +463,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	for z = z0 - 1, z1 do
 	for y = y0 - 1, y1 + 1 do
 		local si = 1
-		local vi = area:index(x0-1, y, z)
+		local vi = area:index(x0 - 1, y, z)
 		local viu = vi - emerlen
 		local n_xprepatha = false
 		local n_xprepathb = false
@@ -720,6 +726,108 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	vm:update_liquids()
 
 	local chugent = math.ceil((os.clock() - t0) * 1000)
-	print ("[riverdev] "..chugent.." ms")
+	print ("[riverdev] " .. chugent .. " ms")
 end)
 
+
+-- Spawn player function
+-- Only works with chunksize = 5 mapblocks
+
+local function riverdev_spawnplayer(player)
+	local xsp
+	local ysp
+	local zsp
+	local nobj_terrain = nil
+	local nobj_mid     = nil
+	local nobj_base    = nil
+	local nobj_patha   = nil
+	local nobj_pathb   = nil
+
+	for chunk = 1, 128 do
+		print ("[riverdev] searching for spawn " .. chunk)
+		local x0 = 80 * math.random(-PSCA, PSCA) - 32
+		local z0 = 80 * math.random(-PSCA, PSCA) - 32
+		local y0 = 80 * math.floor((YWATER + 32) / 80) - 32
+		local x1 = x0 + 79
+		local z1 = z0 + 79
+		local y1 = y0 + 79
+
+		local sidelen = 80
+		local chulensxyz = {x = sidelen, y = sidelen, z = sidelen}
+		local minposxyz = {x = x0, y = y0, z = z0}
+		local chulensxz = {x = sidelen, y = sidelen, z = 1}
+		local minposxz = {x = x0, y = z0}
+	
+		nobj_terrain = nobj_terrain or minetest.get_perlin_map(np_terrain, chulensxyz)
+		nobj_mid     = nobj_mid     or minetest.get_perlin_map(np_mid, chulensxz)
+		nobj_base    = nobj_base    or minetest.get_perlin_map(np_base, chulensxz)
+		nobj_patha   = nobj_patha   or minetest.get_perlin_map(np_patha, chulensxz)
+		nobj_pathb   = nobj_pathb   or minetest.get_perlin_map(np_pathb, chulensxz)
+
+		local nvals_terrain = nobj_terrain:get3dMap_flat(minposxyz)
+		local nvals_mid     = nobj_mid:get2dMap_flat(minposxz)
+		local nvals_base    = nobj_base:get2dMap_flat(minposxz)
+		local nvals_patha   = nobj_patha:get2dMap_flat(minposxz)
+		local nvals_pathb   = nobj_pathb:get2dMap_flat(minposxz)
+
+		local nixyz = 1
+		local nixz = 1
+		for z = z0, z1 do
+			for y = y0, y1 do
+				for x = x0, x1 do
+					local n_patha = nvals_patha[nixz]
+					local n_abspatha = math.abs(n_patha)
+					local n_pathb = nvals_pathb[nixz]
+					local n_abspathb = math.abs(n_pathb)
+
+					local n_terrain = (nvals_terrain[nixyz] + 2) / 2
+					local n_absmid = (math.abs(nvals_mid[nixz])) ^ 0.8
+					local n_absbase = (math.abs(nvals_base[nixz])) ^ 0.8
+					local n_invbase = math.max(1 - n_absbase, 0)
+
+					local grad = (YTER - y) / TERSCA
+					local densitybase = n_invbase * BASAMP + grad
+					local densitymid = n_absmid * MIDAMP + densitybase
+					local density = n_terrain * n_invbase * n_absmid * n_abspatha ^ 1.5 * n_abspathb ^ 1.5
+					+ densitymid
+
+					if y >= YWATER and density > -0.01 and density < 0 then
+						ysp = y + 1
+						xsp = x
+						zsp = z
+						break
+					end
+					nixz = nixz + 1
+					nixyz = nixyz + 1
+				end
+				if ysp then
+					break
+				end
+				nixz = nixz - 80
+			end
+			if ysp then
+				break
+			end
+			nixz = nixz + 80
+		end
+		if ysp then
+			break
+		end
+	end
+	if ysp then
+		print ("[riverdev] spawn player (" .. xsp .. " " .. ysp .. " " .. zsp .. ")")
+		player:setpos({x = xsp, y = ysp, z = zsp})
+	else	
+		print ("[riverdev] no suitable spawn found")
+		player:setpos({x = 0, y = 2, z = 0})
+	end
+end
+
+minetest.register_on_newplayer(function(player)
+	riverdev_spawnplayer(player)
+end)
+
+minetest.register_on_respawnplayer(function(player)
+	riverdev_spawnplayer(player)
+	return true
+end)
